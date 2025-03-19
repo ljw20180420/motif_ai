@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from datasets import load_dataset
 from transformers import Trainer, TrainingArguments
 from .model import BindTransformerConfig, BindTransformerModel

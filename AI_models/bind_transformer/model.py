@@ -12,12 +12,12 @@ class BindTransformerConfig(RoFormerConfig):
         self,
         vocab_size=24,  # protein + DNA
         hidden_size=256,  # model embedding dimension
-        num_hidden_layers=3,  # number of EncoderLayer
+        num_hidden_layers=4,  # number of EncoderLayer
         num_attention_heads=4,  # number of attention heads
         intermediate_size=1024,  # FeedForward intermediate dimension size
         hidden_dropout_prob=0.1,  # The dropout probability for all fully connected layers in the embeddings, encoder, and pooler
         attention_probs_dropout_prob=0.1,  # The dropout ratio for the attention probabilities
-        max_position_embeddings=32,  # The maximum sequence length that this model might ever be used with. Typically set this to something large just in case (e.g., 512 or 1024 or 1536).
+        max_position_embeddings=64,  # The maximum sequence length that this model might ever be used with. Typically set this to something large just in case (e.g., 512 or 1024 or 1536).
         pos_weight=1,  # weight for positive samples (https://www.tensorflow.org/tutorials/structured_data/imbalanced_data)
         seed=63036,  # random seed for intialization
         **kwargs

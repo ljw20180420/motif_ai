@@ -5,55 +5,72 @@ import logging
 import sys
 
 
-def get_config(config_file=None):
-    default_config_files = ["config.ini"]
-    if config_file:
-        default_config_files = default_config_files + [config_file]
-
+def get_config(config_files):
+    """
+    config_files: Files contain hyper-parameters. The later config files will override the former ones.
+    For example, if  config_files=['config.ini', 'config_bind_transformer.ini'], then settings in config_bind_transformer.ini will override settings in config.ini. A good practice is to put default settings in config.ini (do not modify config.ini), and then override default behaviors in config_bind_transformer.ini.
+    """
     parser = configargparse.ArgumentParser(
-        description="arguments for transcriptor binding DL models",
-        default_config_files=default_config_files,
+        description="Arguments for transcriptor binding roformer model.",
+        default_config_files=config_files,
     )
-    parser.add_argument(
-        "--output_dir", type=pathlib.Path, default="./results", help="output directory"
+
+    # common parameters
+    parser_common = parser.add_argument_group(
+        title="common", description="Common parameters."
     )
-    parser.add_argument("--seed", type=int, default=63036, help="random seed")
-    parser.add_argument(
+    parser_common.add_argument(
+        "--train_output_dir",
+        type=pathlib.Path,
+        default="results",
+        help="Output directory of training process, which contains model checkpoints for epochs.",
+    )
+    parser_common.add_argument(
+        "--pipeline_output_dir",
+        type=pathlib.Path,
+        default="pipeline",
+        help="Output directory to save pipeline.",
+    )
+    parser_common.add_argument("--seed", type=int, default=63036, help="random seed")
+    parser_common.add_argument(
         "--device",
         type=str,
         default="cuda" if torch.cuda.is_available() else "cpu",
-        help="device",
+        help="Device for computation (cuda or cpu). If not specified, use cuda if available",
     )
-    parser.add_argument(
+    parser_common.add_argument(
         "--log",
         type=str,
         default="WARNING",
         choices=["CRITICAL", "FATAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"],
-        help="set logging level",
+        help="Set logging level.",
     )
 
+    # dataset parameters
     parser_dataset = parser.add_argument_group(
-        title="dataset", description="parameters for loading and split dataset"
+        title="dataset", description="Parameters for loading and split dataset."
     )
     parser_dataset.add_argument(
-        "--test_ratio", type=float, default=0.1, help="proportion for test samples"
+        "--test_ratio", type=float, default=0.1, help="Proportion for test samples."
     )
     parser_dataset.add_argument(
         "--validation_ratio",
         type=float,
         default=0.1,
-        help="proportion for validation samples",
+        help="Proportion for validation samples.",
     )
 
-    parser_dataloader = parser.add_argument_group(
-        title="data loader", description="parameters for data loader"
+    # data loader parameters
+    parser_data_loader = parser.add_argument_group(
+        title="data loader", description="Parameters for data loader."
     )
-    parser_dataloader.add_argument(
-        "--batch_size", type=int, default=1000, help="batch size"
+    parser_data_loader.add_argument(
+        "--batch_size", type=int, default=1000, help="Batch size."
     )
 
+    # optimizer parameters
     parser_optimizer = parser.add_argument_group(
-        title="optimizer", description="parameters for optimizer"
+        title="optimizer", description="Parameters for optimizer."
     )
     parser_optimizer.add_argument(
         "--optimizer",
@@ -67,14 +84,15 @@ def get_config(config_file=None):
             "adamw_anyprecision",
             "adafactor",
         ],
-        help="name of optimizer",
+        help="Optimizer for training.",
     )
     parser_optimizer.add_argument(
-        "--learning_rate", type=float, default=0.001, help="learn rate of the optimizer"
+        "--learning_rate", type=float, default=0.001, help="Learn rate of training."
     )
 
+    # scheduler parameters
     parser_scheduler = parser.add_argument_group(
-        title="scheduler", description="parameters for learning rate scheduler"
+        title="scheduler", description="Parameters for learning rate scheduler."
     )
     parser_scheduler.add_argument(
         "--scheduler",
@@ -92,7 +110,7 @@ def get_config(config_file=None):
             "cosine_with_min_lr",
             "warmup_stable_decay",
         ],
-        help="The scheduler type to use.",
+        help="The learning rate scheduler to use.",
     )
     parser_scheduler.add_argument(
         "--num_epochs",
@@ -107,41 +125,53 @@ def get_config(config_file=None):
         help="Ratio of total training steps used for a linear warmup from 0 to learning_rate",
     )
 
+    # roformer parameters
     parser_roformer = parser.add_argument_group(
-        title="roformer", description="parameters for roformer"
+        title="roformer", description="Parameters for roformer."
     )
     parser_roformer.add_argument(
-        "--hidden_size", type=int, default=256, help="model embedding dimension"
+        "--vocab_size",
+        type=int,
+        default=24,
+        help="The vocabulary size of the model. For protein + DNA, it is 24.",
     )
     parser_roformer.add_argument(
-        "--num_hidden_layers", type=int, default=3, help="number of EncoderLayer"
+        "--hidden_size", type=int, default=256, help="Model embedding dimension."
     )
     parser_roformer.add_argument(
-        "--num_attention_heads", type=int, default=4, help="number of attention heads"
+        "--num_hidden_layers", type=int, default=4, help="Number of EncoderLayer."
+    )
+    parser_roformer.add_argument(
+        "--num_attention_heads", type=int, default=4, help="Number of attention heads."
     )
     parser_roformer.add_argument(
         "--intermediate_size",
         type=int,
         default=1024,
-        help="FeedForward intermediate dimension size",
+        help="FeedForward intermediate dimension size.",
     )
     parser_roformer.add_argument(
         "--hidden_dropout_prob",
         type=float,
         default=0.1,
-        help="The dropout probability for all fully connected layers in the embeddings, encoder, and pooler",
+        help="The dropout probability for all fully connected layers in the embeddings, encoder, and pooler.",
     )
     parser_roformer.add_argument(
         "--attention_probs_dropout_prob",
         type=float,
         default=0.1,
-        help="The dropout ratio for the attention probabilities",
+        help="The dropout ratio for the attention probabilities.",
     )
     parser_roformer.add_argument(
         "--max_position_embeddings",
         type=int,
-        default=32,
+        default=64,
         help="The maximum sequence length that this model might ever be used with. Typically set this to something large just in case (e.g., 512 or 1024 or 1536).",
+    )
+    parser_roformer.add_argument(
+        "--pos_weight",
+        type=float,
+        help="Weight for positive samples (https://www.tensorflow.org/tutorials/structured_data/imbalanced_data). If not specified, then pos_weight = neg / pos. pos is the number of positive sample. neg is the number of negative sample.",
     )
 
     return parser.parse_args()
