@@ -10,7 +10,7 @@ class BindTransformerConfig(RoFormerConfig):
 
     def __init__(
         self,
-        vocab_size=4,  # ACGT
+        vocab_size=24,  # protein + DNA
         hidden_size=256,  # model embedding dimension
         num_hidden_layers=3,  # number of EncoderLayer
         num_attention_heads=4,  # number of attention heads

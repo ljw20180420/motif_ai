@@ -1,1 +1,7 @@
 **/__pycache__
+logs
+pipeline
+results
+.env
+.gradio
+.vscode
