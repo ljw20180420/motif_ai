@@ -8,16 +8,34 @@ import sys
 def get_config(config_files):
     """
     config_files: Files contain hyper-parameters. The later config files will override the former ones.
-    For example, if  config_files=['config.ini', 'config_bind_transformer.ini'], then settings in config_bind_transformer.ini will override settings in config.ini. A good practice is to put default settings in config.ini (do not modify config.ini), and then override default behaviors in config_bind_transformer.ini.
+    For example, if  config_files=['AI_models/bind_transformer/config_default.ini', 'AI_models/bind_transformer/config_custom.ini'], then settings in config_custom.ini will override settings in config_default.ini. A good practice is to put default settings in config_default.ini (do not modify config_default.ini), and then override default behaviors in config_custom.ini.
     """
     parser = configargparse.ArgumentParser(
         description="Arguments for transcriptor binding roformer model.",
         default_config_files=config_files,
     )
 
+    # command parameters
+    parser_command = parser.add_argument_group(
+        title="command", description="Command parameters."
+    )
+    parser_command.add_argument(
+        "--command",
+        type=str,
+        required=True,
+        choices=["train", "test", "inference", "app"],
+        help="Input directory contains csv files with header protein,DNA,bind",
+    )
+
     # common parameters
     parser_common = parser.add_argument_group(
         title="common", description="Common parameters."
+    )
+    parser_common.add_argument(
+        "--data_dir",
+        type=pathlib.Path,
+        default="test",
+        help="Input directory contains csv files with header protein,DNA,bind",
     )
     parser_common.add_argument(
         "--train_output_dir",
@@ -39,7 +57,7 @@ def get_config(config_files):
         help="Device for computation (cuda or cpu). If not specified, use cuda if available",
     )
     parser_common.add_argument(
-        "--log",
+        "--log_level",
         type=str,
         default="WARNING",
         choices=["CRITICAL", "FATAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"],
@@ -51,13 +69,13 @@ def get_config(config_files):
         title="dataset", description="Parameters for loading and split dataset."
     )
     parser_dataset.add_argument(
-        "--test_ratio", type=float, default=0.1, help="Proportion for test samples."
-    )
-    parser_dataset.add_argument(
         "--validation_ratio",
         type=float,
         default=0.1,
         help="Proportion for validation samples.",
+    )
+    parser_dataset.add_argument(
+        "--test_ratio", type=float, default=0.1, help="Proportion for test samples."
     )
 
     # data loader parameters
@@ -177,9 +195,9 @@ def get_config(config_files):
     return parser.parse_args()
 
 
-def get_logger(args):
+def get_logger(log_level):
     logger = logging.getLogger("logger")
     handler = logging.StreamHandler(stream=sys.stdout)
-    handler.setLevel(args.log)
+    handler.setLevel(log_level)
     logger.addHandler(handler)
     return logger

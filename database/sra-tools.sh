@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# 使用方法：path/to/sra-tools.sh SRA_ACCESSION_LIST_FILE.txt
+
 download_sra_until_success() {
     # 第一个参数是SRR的accession编号列表文件
     accessionListFile=$1
@@ -35,4 +37,5 @@ vdb-config  --prefetch-to-user-repo
 vdb-config -s "/repository/user/main/public/root=$SRA_CACHE"
 
 # 一直检查到成功
-validate_sra_until_success SraAccList.txt
+SraAccList=$1
+validate_sra_until_success $SraAccList

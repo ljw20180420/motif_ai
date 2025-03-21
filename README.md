@@ -1,12 +1,12 @@
 ### Install
 ```bash
-pip install -r requirements.txt -r requirements_pytorch.txt
+conda create --name ENVIRONMENT --file conda.yaml
+conda create -prefix PATH --file conda.yaml
 ```
 
 ### Train
 ```python
-from AI_models.bind_transformer.train import train
-train(data_files="test/data.csv")
+
 ```
 ### Test and save pipeline
 ```python

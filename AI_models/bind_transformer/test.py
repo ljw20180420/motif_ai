@@ -1,35 +1,33 @@
 #!/usr/bin/env python
 
-from datasets import load_dataset
 from torch.utils.data import DataLoader
-import glob
 import shutil
 from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
 from .model import BindTransformerModel
 from .pipeline import BindTransformerPipeline
-from .load_data import data_collector, outputs_test, train_validation_test_split
-from ..config import get_config, get_logger
-
-args = get_config(config_file="config_bind_transformer.ini")
-logger = get_logger(args)
+from .load_data import data_collector, outputs_test
 
 
-def test(data_files="test/data.csv"):
+def test(
+    ds,
+    train_output_dir,
+    pipeline_output_dir,
+    device,
+    batch_size,
+    logger,
+):
     logger.info("load model")
-    bind_transformer_model = BindTransformerModel.from_pretrained(args.output_dir)
+    bind_transformer_model = BindTransformerModel.from_pretrained(train_output_dir)
     # remove parent module name
     bind_transformer_model.__module__ = bind_transformer_model.__module__.split(".")[-1]
 
     logger.info("setup pipeline")
     pipe = BindTransformerPipeline(bind_transformer_model)
-    pipe.bind_transformer_model.to(args.device)
+    pipe.bind_transformer_model.to(device)
 
-    logger.info("load test data")
-    ds = load_dataset("csv", data_files=data_files)
-    ds = train_validation_test_split(ds)["test"]
     test_dataloader = DataLoader(
-        dataset=ds,
-        batch_size=args.batch_size,
+        dataset=ds["test"],
+        batch_size=batch_size,
         collate_fn=lambda examples: data_collector(examples, outputs_test),
     )
 
@@ -38,7 +36,7 @@ def test(data_files="test/data.csv"):
         output = pipe(batch)
 
     logger.info("save pipeline")
-    pipe.save_pretrained(save_directory="pipeline")
+    pipe.save_pretrained(save_directory=pipeline_output_dir)
 
     def ignore_func(src, names):
         return [

@@ -2,9 +2,9 @@ import torch
 import numpy as np
 from .model import BindTransformerConfig
 
-outputs_train = ["DNA", "protein"] + BindTransformerConfig.label_names
-outputs_test = ["DNA", "protein"] + BindTransformerConfig.label_names
-outputs_inference = ["DNA", "protein"]
+outputs_train = ["DNAprotein"] + BindTransformerConfig.label_names
+outputs_test = ["DNAprotein"] + BindTransformerConfig.label_names
+outputs_inference = ["DNAprotein"]
 
 
 # seq="ACGT"
@@ -25,14 +25,14 @@ def protein_tokenizer(seq):
 @torch.no_grad()
 def data_collector(examples, outputs):
     results = dict()
-    if "DNA" in outputs:
+    if "DNAprotein" in outputs:
         results["DNA"] = torch.stack(
-            [DNA_tokenizer(example["DNA"]) for example in examples]
-        )
-
-    if "protein" in outputs:
-        results["protein"] = torch.stack(
-            [protein_tokenizer(example["protein"]) for example in examples]
+            [
+                torch.cat(
+                    DNA_tokenizer(example["DNA"]), protein_tokenizer(example["protein"])
+                )
+                for example in examples
+            ]
         )
 
     for label_name in BindTransformerConfig.label_names:
@@ -44,6 +44,7 @@ def data_collector(examples, outputs):
     return results
 
 
+@torch.no_grad()
 def train_validation_test_split(ds, validation_ratio, test_ratio, seed):
     ds = ds["train"].train_test_split(
         test_size=test_ratio + validation_ratio, seed=seed

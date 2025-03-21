@@ -10,8 +10,6 @@ class BindTransformerPipeline(DiffusionPipeline):
 
     @torch.no_grad()
     def __call__(self, batch):
-        return {
-            "logit": self.bind_transformer_model(
-                batch["seq"].to(self.bind_transformer_model.device)
-            )["logit"]
-        }
+        return self.bind_transformer_model(
+            batch["DNAprotein"].to(self.bind_transformer_model.device)
+        )["logit"]
