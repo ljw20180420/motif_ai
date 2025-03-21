@@ -6,5 +6,5 @@
 SraAccList=$1
 while read accsession
 do
-    fasterq-dump $accsession -O $SRA_CACHE/sra -p 
+    fasterq-dump $accsession --outdir $SRA_CACHE/sra --progress
 done < $SraAccList

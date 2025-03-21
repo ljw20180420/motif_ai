@@ -7,7 +7,7 @@ download_sra_until_success() {
     accessionListFile=$1
 
     # 一直下到成功
-    until prefetch -p --option-file=$accessionListFile
+    until prefetch --max-size u --progress --option-file=$accessionListFile
     do
         pass
     done

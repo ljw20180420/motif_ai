@@ -1,3 +1,3 @@
 sample,fastq_1,fastq_2,replicate,antibody,control,control_replicate
-SRR3261222-5-6,$SRA_CACHE/sra/SRR32612225_1.fastq,$SRA_CACHE/sra/SRR32612225_2.fastq,1,CTCF,,
-SRR3261222-5-6,$SRA_CACHE/sra/SRR32612226_1.fastq,$SRA_CACHE/sra/SRR32612226_2.fastq,2,CTCF,,
+SRR3261222-5-6,/home/ljw/sdc1/SRA_cache/sra/SRR32612225_1.fastq.gz,/home/ljw/sdc1/SRA_cache/sra/SRR32612225_2.fastq.gz,1,,,
+SRR3261222-5-6,/home/ljw/sdc1/SRA_cache/sra/SRR32612226_1.fastq.gz,/home/ljw/sdc1/SRA_cache/sra/SRR32612226_2.fastq.gz,2,,,

@@ -5,6 +5,8 @@ results
 .env
 .gradio
 .vscode
+.nextflow
 nextflow/pipelines
 nextflow/runs/**/results
 nextflow/runs/**/logs
+nextflow/runs/**/work
