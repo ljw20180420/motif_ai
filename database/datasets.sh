@@ -11,3 +11,4 @@ until datasets download genome accession GCF_000001635.27 --include genome,gtf -
 do
     datasets download genome accession GCF_000001635.27 --include genome,gtf,gff3 --filename $SRA_CACHE/mouse_dataset.zip
 done
+unzip $SRA_CACHE/mouse_dataset.zip

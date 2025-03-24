@@ -10,3 +10,4 @@ nextflow/pipelines
 nextflow/runs/**/results
 nextflow/runs/**/logs
 nextflow/runs/**/work
+tmp_b_c.txt

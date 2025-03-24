@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 
+import os
+
+# 把运行文件夹切换为脚本文件夹
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
 from datasets import load_dataset
-from AI_models.config import get_config, get_logger
-from AI_models.bind_transformer.load_data import train_validation_test_split
+from config import get_config, get_logger
+from bind_transformer.load_data import train_validation_test_split
 
 args = get_config(
     [
@@ -17,7 +22,7 @@ ds = load_dataset(args.data_dir)
 ds = train_validation_test_split(ds, args.validation_ratio, args.test_ratio, args.seed)
 
 if args.command == "train":
-    from AI_models.bind_transformer.train import train
+    from bind_transformer.train import train
 
     train(
         ds,

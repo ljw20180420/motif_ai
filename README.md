@@ -1,3 +1,9 @@
+TODO
+```list
+- [] index the genome in advance so that nextflow chipseq pipeline need not index the genome
+- [] skip unnecessary steps in nextflow chipseq pipeline
+```
+
 ### Install
 ```bash
 conda create --name ENVIRONMENT --file conda.yaml
