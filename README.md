@@ -1,7 +1,6 @@
 TODO
 ```list
-- [] index the genome in advance so that nextflow chipseq pipeline need not index the genome
-- [] skip unnecessary steps in nextflow chipseq pipeline
+Write custom RoPE model including cross-attention.
 ```
 
 ### Install

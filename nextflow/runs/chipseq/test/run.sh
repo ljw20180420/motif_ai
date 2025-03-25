@@ -1,27 +1,23 @@
 #!/bin/bash
 
-# 获取脚本路径
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+# 切换运行路径到脚本路径
+cd $( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 nextflow \
-    -log $SCRIPT_DIR/logs/.nextflow.log \
-    -config $SCRIPT_DIR/nextflow.config \
-    run $SCRIPT_DIR/../../../pipelines/chipseq/dev \
-        -output-dir $SCRIPT_DIR/.nextflow \
-        -work-dir $SCRIPT_DIR/work \
+    -log logs/.nextflow.log \
+    run ../../../pipelines/chipseq/dev \
         -profile singularity \
         -resume \
         -with-trace \
-        -params-file $SCRIPT_DIR/params.yaml \
-            --input $SCRIPT_DIR/samplesheet.csv \
-            --outdir $SCRIPT_DIR/results \
+        -params-file params.yaml \
             --fasta $SRA_CACHE/ncbi_dataset/data/GCF_000001635.27/GCF_000001635.27_GRCm39_genomic.fna \
-            --gtf $SRA_CACHE/ncbi_dataset/data/GCF_000001635.27/genomic.gtf
+            --gtf $SRA_CACHE/ncbi_dataset/data/GCF_000001635.27/genomic.gtf \
+            --bowtie2_index $SRA_CACHE/ncbi_dataset/data/GCF_000001635.27/index/bowtie2
 
-if ! test -d $SCRIPT_DIR/results/bowtie2/merged_library/macs3
+if ! test -d results/bowtie2/merged_library/macs3
 then
-    for bam in $(find $SCRIPT_DIR/results/bowtie2/merged_library -name "*.sorted.bam")
+    for bam in $(find results/bowtie2/merged_library -name "*.sorted.bam")
     do
-        macs3 callpeak --gsize 2495461690 --format BAMPE --outdir $SCRIPT_DIR/results/bowtie2/merged_library/macs3/narrowPeak/$(basename $bam) --name $(basename $bam) --treatment $bam
+        macs3 callpeak --gsize 2495461690 --format BAMPE --outdir results/bowtie2/merged_library/macs3/narrowPeak/$(basename $bam) --name $(basename $bam) --treatment $bam
     done
 fi
