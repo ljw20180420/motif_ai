@@ -6,7 +6,7 @@ import os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 from datasets import load_dataset
-from config import get_config, get_logger
+from bind_transformer.config import get_config, get_logger
 from bind_transformer.load_data import train_validation_test_split
 
 args = get_config(

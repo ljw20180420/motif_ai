@@ -3,7 +3,7 @@ from datasets import load_dataset
 from torch.utils.data import DataLoader
 from diffusers import DiffusionPipeline
 from tqdm import tqdm
-from ..config import get_config, get_logger
+from .config import get_config, get_logger
 from .load_data import data_collector, outputs_inference
 
 args = get_config(config_file="config_bind_transformer.ini")

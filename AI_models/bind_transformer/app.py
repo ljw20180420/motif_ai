@@ -4,7 +4,7 @@ from .load_data import data_collector, outputs_inference
 import torch
 import pandas as pd
 import torch.nn.functional as F
-from ..config import get_config, get_logger
+from .config import get_config, get_logger
 
 args = get_config(config_file="config_bind_transformer.ini")
 logger = get_logger(args)

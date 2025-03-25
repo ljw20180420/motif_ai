@@ -25,7 +25,7 @@ def train(
     logger,
 ):
     """
-    For the meanings of parameters, execute: AI_models/run.py -h.
+    For the meanings of parameters, execute: AI_models/run_bind_transformer.py -h.
     """
 
     logger.info("estimate positive weight")
