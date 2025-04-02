@@ -1,33 +1,33 @@
 #!/bin/bash
 
-# 提取peak的序列
-# The flag -U/--update-faidx is recommended to ensure the .fai file matches the FASTA file.
-for narrowPeak in $(ls $DATA_DIR/*.final.narrowPeak)
-do
-    accession=$(basename ${narrowPeak%%.*})
-    seqkit subseq \
-        < $GENOME \
-        --update-faidx \
-        --bed $narrowPeak \
-        --up-stream 50 \
-        --down-stream 50 \
-        > $DATA_DIR/$accession.fasta
-done
-
-# # 预测motif
-# for fasta in $(ls $DATA_DIR/*.fasta)
+# # 提取peak的序列
+# # The flag -U/--update-faidx is recommended to ensure the .fai file matches the FASTA file.
+# for narrowPeak in $(ls $DATA_DIR/*.final.narrowPeak)
 # do
-#     accession=$(basename ${fasta%.*})
-#     streme \
-#         --text \
-#         --thres 0.05 \
-#         --nmotifs 1 \
-#         --minw 10 \
-#         --maxw 30 \
-#         --p $DATA_DIR/$accession.fasta \
-#         > $DATA_DIR/$accession.meme
-#     meme2images -png $DATA_DIR/$accession.meme $DATA_DIR/$accession.png
+#     accession=$(basename ${narrowPeak%%.*})
+#     seqkit subseq \
+#         < $GENOME \
+#         --update-faidx \
+#         --bed $narrowPeak \
+#         --up-stream 50 \
+#         --down-stream 50 \
+#         > $DATA_DIR/$accession.fasta
 # done
+
+# 预测motif
+for fasta in $(ls $DATA_DIR/*.fasta)
+do
+    accession=$(basename ${fasta%.*})
+    streme \
+        --text \
+        --thres 0.05 \
+        --nmotifs 1 \
+        --minw 10 \
+        --maxw 30 \
+        --p $DATA_DIR/$accession.fasta \
+        > $DATA_DIR/$accession.meme
+    meme2images -png $DATA_DIR/$accession.meme $DATA_DIR/$accession.png
+done
 
 # # 搜索motif，并根据搜索结果选择最好的motif
 # for meme in $(ls $DATA_DIR/*.meme)

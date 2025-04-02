@@ -33,7 +33,7 @@ def eight_to_three(sec):
     return sec
 
 
-with open("secondary_structure.tsv", "w") as fd:
+with open(3, "w") as fd:
     fd.write("accession\tsequence\tsecondary_structure\n")
     for file in enumerate(os.listdir("get_mmcif_from_alphafoldDB")):
         file = file[1]

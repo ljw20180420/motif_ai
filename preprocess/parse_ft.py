@@ -60,6 +60,7 @@ for zinc_fingers, KRABs, secondary_structure in zip(
 
 df["secondary_structure"] = secondary_structures
 
-df.loc[
-    :, ["Entry", "Reviewed", "Entry Name", "sequence", "secondary_structure"]
-].to_csv("protein.tsv", sep="\t", header=True, index=False)
+with open(3, "w") as fd:
+    df.loc[
+        :, ["Entry", "Reviewed", "Entry Name", "sequence", "secondary_structure"]
+    ].to_csv(fd, sep="\t", header=True, index=False)

@@ -11,3 +11,5 @@ nextflow/runs/**/logs
 nextflow/runs/**/work
 nextflow/runs/**/.nextflow
 tmp_b_c.txt
+**.pdb
+**.mmcif
