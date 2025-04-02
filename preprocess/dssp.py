@@ -16,13 +16,14 @@ def eight_to_three(sec):
     # =====     ====
     # Code      Structure
     # =====     ====
-    # H         Alpha helix (4-12)
-    # B         Isolated beta-bridge residue
-    # E         Strand
-    # G         3-10 helix
-    # I         Pi helix
-    # T         Turn
-    # S         Bend
+    # H         α-helix
+    # B         residue in isolated β-bridge
+    # E         extended strand, participates in β ladder
+    # G         310-helix
+    # I         π-helix
+    # P         κ-helix (poly-proline II helix)
+    # T         hydrogen-bonded turn
+    # S         bend
     # -         None
     # =====     ====
 
