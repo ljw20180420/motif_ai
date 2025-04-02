@@ -24,7 +24,7 @@ def get_config(config_files):
         type=str,
         required=True,
         choices=["train", "test", "inference", "app"],
-        help="Input directory contains csv files with header protein,DNA,bind",
+        help="What to do.",
     )
 
     # common parameters
@@ -34,22 +34,22 @@ def get_config(config_files):
     parser_common.add_argument(
         "--data_dir",
         type=pathlib.Path,
-        default="test",
-        help="Input directory contains csv files with header protein,DNA,bind",
+        required=True,
+        help="Input directory contains csv files with header protein,secondary_structure,DNA,bind",
     )
     parser_common.add_argument(
         "--train_output_dir",
         type=pathlib.Path,
-        default="results",
+        required=True,
         help="Output directory of training process, which contains model checkpoints for epochs.",
     )
     parser_common.add_argument(
         "--pipeline_output_dir",
         type=pathlib.Path,
-        default="pipeline",
+        required=True,
         help="Output directory to save pipeline.",
     )
-    parser_common.add_argument("--seed", type=int, default=63036, help="random seed")
+    parser_common.add_argument("--seed", type=int, required=True, help="random seed")
     parser_common.add_argument(
         "--device",
         type=str,
@@ -59,7 +59,7 @@ def get_config(config_files):
     parser_common.add_argument(
         "--log_level",
         type=str,
-        default="WARNING",
+        required=True,
         choices=["CRITICAL", "FATAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"],
         help="Set logging level.",
     )
@@ -71,11 +71,11 @@ def get_config(config_files):
     parser_dataset.add_argument(
         "--validation_ratio",
         type=float,
-        default=0.1,
+        required=True,
         help="Proportion for validation samples.",
     )
     parser_dataset.add_argument(
-        "--test_ratio", type=float, default=0.1, help="Proportion for test samples."
+        "--test_ratio", type=float, required=True, help="Proportion for test samples."
     )
 
     # data loader parameters
@@ -83,7 +83,7 @@ def get_config(config_files):
         title="data loader", description="Parameters for data loader."
     )
     parser_data_loader.add_argument(
-        "--batch_size", type=int, default=1000, help="Batch size."
+        "--batch_size", type=int, required=True, help="Batch size."
     )
 
     # optimizer parameters
@@ -93,7 +93,7 @@ def get_config(config_files):
     parser_optimizer.add_argument(
         "--optimizer",
         type=str,
-        default="adamw_torch",
+        required=True,
         choices=[
             "adamw_hf",
             "adamw_torch",
@@ -105,7 +105,7 @@ def get_config(config_files):
         help="Optimizer for training.",
     )
     parser_optimizer.add_argument(
-        "--learning_rate", type=float, default=0.001, help="Learn rate of training."
+        "--learning_rate", type=float, required=True, help="Learn rate of training."
     )
 
     # scheduler parameters
@@ -115,7 +115,7 @@ def get_config(config_files):
     parser_scheduler.add_argument(
         "--scheduler",
         type=str,
-        default="linear",
+        required=True,
         choices=[
             "linear",
             "cosine",
@@ -133,13 +133,13 @@ def get_config(config_files):
     parser_scheduler.add_argument(
         "--num_epochs",
         type=float,
-        default=30.0,
+        required=True,
         help="Total number of training epochs to perform (if not an integer, will perform the decimal part percents of the last epoch before stopping training).",
     )
     parser_scheduler.add_argument(
         "--warmup_ratio",
         type=float,
-        default=0.05,
+        required=True,
         help="Ratio of total training steps used for a linear warmup from 0 to learning_rate",
     )
 
@@ -148,43 +148,104 @@ def get_config(config_files):
         title="roformer", description="Parameters for roformer."
     )
     parser_roformer.add_argument(
-        "--vocab_size",
+        "--protein_animo_acids_vocab_size",
         type=int,
-        default=24,
-        help="The vocabulary size of the model. For protein + DNA, it is 24.",
+        required=True,
+        help="The vocabulary size of protein animo acids. 20 animo acids and 1 mask token, totally 21.",
     )
     parser_roformer.add_argument(
-        "--hidden_size", type=int, default=256, help="Model embedding dimension."
+        "--protein_secondary_structure_vocab_size",
+        type=int,
+        required=True,
+        help="The vocabulary size of protein secondary structure. 11 secondary structrue and 1 mask token, totally 12.",
     )
     parser_roformer.add_argument(
-        "--num_hidden_layers", type=int, default=4, help="Number of EncoderLayer."
+        "--protein_coarse_grained_size",
+        type=int,
+        required=True,
+        help="The coarse-grained bin size of protein.",
     )
     parser_roformer.add_argument(
-        "--num_attention_heads", type=int, default=4, help="Number of attention heads."
+        "--protein_max_position_embeddings",
+        type=int,
+        required=True,
+        help="The maximum sequence length of protein. Typically set this to something large just in case (e.g., 512 or 1024 or 1536).",
+    )
+    parser_roformer.add_argument(
+        "--DNA_vocab_size",
+        type=int,
+        required=True,
+        help="The vocabulary size of DNA. 4 nucletides and 1 mask token and 1 [CLS] token, totally 6.",
+    )
+    parser_roformer.add_argument(
+        "--DNA_max_position_embeddings",
+        type=int,
+        required=True,
+        help="The maximum sequence length of DNA. Typically set this to something large just in case (e.g., 512 or 1024 or 1536).",
+    )
+    parser_roformer.add_argument(
+        "--embedding_size", type=int, required=True, help="Model embedding dimension."
+    )
+    parser_roformer.add_argument(
+        "--hidden_size", type=int, required=True, help="Model hiddent dimension."
+    )
+    parser_roformer.add_argument(
+        "--num_attention_heads",
+        type=int,
+        required=True,
+        help="Number of attention heads.",
+    )
+    parser_roformer.add_argument(
+        "--num_hidden_layers", type=int, required=True, help="Number of EncoderLayer."
+    )
+    parser_roformer.add_argument(
+        "--chunk_size_feed_forward",
+        type=int,
+        required=True,
+        help="The chunk size of all feed forward layers in the residual attention blocks. A chunk size of 0 means that the feed forward layer is not chunked.",
     )
     parser_roformer.add_argument(
         "--intermediate_size",
         type=int,
-        default=1024,
+        required=True,
         help="FeedForward intermediate dimension size.",
+    )
+    parser_roformer.add_argument(
+        "--hidden_act",
+        type=str,
+        required=True,
+        choices=["gelu", "relu", "selu", "gelu_new"],
+        help="The non-linear activation function in the encoder and pooler.",
     )
     parser_roformer.add_argument(
         "--hidden_dropout_prob",
         type=float,
-        default=0.1,
+        required=True,
         help="The dropout probability for all fully connected layers in the embeddings, encoder, and pooler.",
     )
     parser_roformer.add_argument(
         "--attention_probs_dropout_prob",
         type=float,
-        default=0.1,
+        required=True,
         help="The dropout ratio for the attention probabilities.",
     )
     parser_roformer.add_argument(
-        "--max_position_embeddings",
-        type=int,
-        default=64,
-        help="The maximum sequence length that this model might ever be used with. Typically set this to something large just in case (e.g., 512 or 1024 or 1536).",
+        "--initializer_range",
+        type=float,
+        required=True,
+        help="The standard deviation of the truncated_normal_initializer for initializing all weight matrices.",
+    )
+    parser_roformer.add_argument(
+        "--layer_norm_eps",
+        type=float,
+        required=True,
+        help="The epsilon used by the layer normalization layers.",
+    )
+    parser_roformer.add_argument(
+        "--rotary_value",
+        type=bool,
+        required=True,
+        help="Whether or not apply rotary position embeddings on value layer.",
     )
     parser_roformer.add_argument(
         "--pos_weight",

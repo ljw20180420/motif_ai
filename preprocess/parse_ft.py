@@ -37,18 +37,15 @@ def parse_intervals(reg, literals):
 
 
 df["disorder"] = parse_intervals(
-    re.compile(r'REGION (\d+)\.\.(\d+); /note="Disordered";'), df["Region"]
+    re.compile(r'REGION (\d+)\.\.(\d+); /note="Disordered"'), df["Region"]
 )
 df["zinc_finger"] = parse_intervals(
-    re.compile(r'ZN_FING (\d+)\.\.(\d+); /note="C2H2-type \d+";'), df["Zinc finger"]
+    re.compile(r'ZN_FING (\d+)\.\.(\d+); /note="C2H2-type( \d+|)"'), df["Zinc finger"]
 )
 df["KRAB"] = parse_intervals(
-    re.compile(r'DOMAIN (\d+)\.\.(\d+); /note="KRAB";'), df["Domain [CC]"]
+    re.compile(r'DOMAIN (\d+)\.\.(\d+); /note="KRAB"'), df["Domain [CC]"]
 )
 
-C_re = re.compile(r"[ITSP]")
-H_re = re.compile(r"G")
-E_re = re.compile(r"B")
 secondary_structures = []
 for zinc_fingers, KRABs, secondary_structure in zip(
     df["zinc_finger"], df["KRAB"], df["secondary_structure"]
@@ -59,30 +56,10 @@ for zinc_fingers, KRABs, secondary_structure in zip(
     for KRAB in KRABs:
         secondary_structure_array[KRAB[0] : KRAB[1]] = "K"
 
-    new_secondary_structure = "".join(secondary_structure_array)
-    new_secondary_structure = C_re.sub("-", new_secondary_structure)
-    new_secondary_structure = H_re.sub("H", new_secondary_structure)
-    new_secondary_structure = E_re.sub("E", new_secondary_structure)
-    secondary_structures.append(new_secondary_structure)
+    secondary_structures.append("".join(secondary_structure_array))
 
 df["secondary_structure"] = secondary_structures
 
-
-def tokenizer(secondary_structure, step):
-    pad_len = int(np.ceil(len(secondary_structure) / step)) * step - len(
-        secondary_structure
-    )
-    secondary_structure += pad_len * "-"
-    for i in range(0, len(secondary_structure), step):
-        seg = secondary_structure[i : i + step]
-        yield max(set(seg), key=seg.count)
-
-
-df["token"] = [
-    "".join(list(tokenizer(secondary_structure, step=10)))
-    for secondary_structure in df["secondary_structure"]
-]
-
 df.loc[
-    :, ["Entry", "Reviewed", "Entry Name", "sequence", "secondary_structure", "token"]
+    :, ["Entry", "Reviewed", "Entry Name", "sequence", "secondary_structure"]
 ].to_csv("protein.tsv", sep="\t", header=True, index=False)

@@ -11,8 +11,8 @@ from bind_transformer.load_data import train_validation_test_split
 
 args = get_config(
     [
-        "AI_models/bind_transformer/config_default.ini",
-        "AI_models/bind_transformer/config_custom.ini",
+        "bind_transformer/config_default.ini",
+        "bind_transformer/config_custom.ini",
     ]
 )
 logger = get_logger(args.log_level)
