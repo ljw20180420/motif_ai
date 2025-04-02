@@ -19,7 +19,6 @@ cd $( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 # done
 
 # 运行nextflow的chipseq pipeline
-# TODO: 利用--skip选项略过不必要的步骤
 # nextflow/runs/chipseq/test/run.sh
 
 # # 合并所有narrowPeak
@@ -52,7 +51,6 @@ cd $( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 
 # # 搜索motif，并根据搜索结果选择最好的motif
-# # 最多搜索nmotifs个motif
 # fimo \
 #     --best-site \
 #     --thresh 1 \
