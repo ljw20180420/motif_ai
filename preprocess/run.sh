@@ -3,6 +3,9 @@
 # 切换运行路径到脚本路径
 cd $( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
+# mask基因组
+bedtools maskfasta -fi $GENOME -bed $GENOME_BLACK -fo $GENOME_MASK
+
 # # 下载蛋白文件
 # ./uniprot_download.py \
 #     'ft_zn_fing:C2H2' \
@@ -28,64 +31,79 @@ cd $( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 # ./parse_ft.py \
 #     3> protein.tsv
 
-# # 提取peak的序列
-# # The flag -U/--update-faidx is recommended to ensure the .fai file matches the FASTA file.
-# for narrowPeak in $(ls $DATA_DIR/*.final.narrowPeak)
-# do
-#     accession=$(basename ${narrowPeak%%.*})
-#     seqkit subseq \
-#         < $GENOME \
-#         --update-faidx \
-#         --bed $narrowPeak \
-#         --up-stream 50 \
-#         --down-stream 50 \
-#         > $DATA_DIR/$accession.fasta
-# done
-
-select_seq=100000
-# 预测motif
-for fasta in $(ls $DATA_DIR/*.fasta)
+# 收集所以accession
+accessions=()
+for narrowPeak in $(ls $DATA_DIR/*.final.narrowPeak)
 do
-    double_total_seq=$(wc -l $fasta)
-    if [ $select_seq -lt $total_seq ]
-    then
-        proportion=$(bc <<< "scale=4; $select_seq / $((double_total_seq / 2))")
-    else
-        proportion=1
-    fi
-    accession=$(basename ${fasta%.*})
+    accession=$(basename ${narrowPeak%%.*})
+    accessions+=($accession)
+done
+
+# accessions=(Q61164)
+
+# 选择最好的peak
+select_peak_num=30000
+for accession in "${accessions[@]}"
+do
+    sort -k7,7nr \
+        < $DATA_DIR/$accession.sorted.narrowPeak |
+    head -n $select_peak_num \
+        > $DATA_DIR/$accession.best.narrowPeak
+done
+
+# 提取peak的序列
+# The flag -U/--update-faidx is recommended to ensure the .fai file matches the FASTA file.
+for accession in "${accessions[@]}"
+do
+    seqkit subseq \
+        < $GENOME_MASK \
+        --update-faidx \
+        --bed $DATA_DIR/$accession.best.narrowPeak \
+        --up-stream 0 \
+        --down-stream 0 \
+        > $DATA_DIR/$accession.best.fasta
+done
+
+# 预测motif
+for accession in "${accessions[@]}"
+do
     streme \
         --text \
         --thres 0.05 \
-        --nmotifs 1 \
+        --nmotifs 3 \
         --minw 10 \
         --maxw 30 \
-        --p <(seqkit sample -p $proportion $fasta) \
+        --p $DATA_DIR/$accession.best.fasta \
         > $DATA_DIR/$accession.meme
-    meme2images -png $DATA_DIR/$accession.meme $DATA_DIR/$accession.png
+    meme2images -png $DATA_DIR/$accession.meme $DATA_DIR/$accession
+    # png=$(ls $DATA_DIR/$accession/*)
+    # mv $png $DATA_DIR/$accession.png
+    # rm -r $DATA_DIR/$accession
 done
 
+# 
+
+
+
 # # 搜索motif，并根据搜索结果选择最好的motif
-# for meme in $(ls $DATA_DIR/*.meme)
+# for accession in "${accessions[@]}"
 # do
-#     accession=$(basename ${meme%.*})
 #     fimo \
 #         --best-site \
 #         --thresh 1 \
 #         --no-qvalue \
 #         --max-strand \
 #         --max-stored-scores 999999999 \
-#         $meme \
+#         $DATA_DIR/$accession.meme \
 #         $DATA_DIR/$accession.fasta \
 #         > $DATA_DIR/$accession.bed
 # done
 
 # # 提取结合位点序列
-# for bed in $(ls $DATA_DIR/*.bed)
+# for accession in "${accessions[@]}"
 # do
-#     accession=$(basename ${bed%.*})
 #     sed -r 's/^([^\t]+)_([0-9]+)-([0-9]+)/\1\t\2\t\3/' \
-#         < $DATA_DIR/$bed |
+#         < $DATA_DIR/$accession.bed |
 #     awk -F '\t' -v OFS='\t' '{print $1, $2 + $4, $2 + $5, "*", $9, $8}' > $DATA_DIR/$accession.global.bed
 #     seq_len=100
 #     motif_len=$(awk '{print $3 - $2; exit}' $DATA_DIR/$accession.global.bed)
@@ -107,13 +125,29 @@ done
 #         > $DATA_DIR/$accession.positive.fasta
 # done
 
-# # 产生不结合位点序列
-# for positive in $(ls $DATA_DIR/*.positive.fasta)
+# # 聚类motif
+# # 重命名motif
+# for accession in "${accessions[@]}"
 # do
-#     accession=$(basename ${positive%%.*})
+#     sed -i "s/^MOTIF.*$/MOTIF $accession/" $DATA_DIR/$accession.meme
+# done
+# # 合并motif
+# meme2meme $(ls $DATA_DIR/*.meme) > $DATA_DIR/motif.dbs
+# # 计算motif相似度
+# tomtom \
+#     -motif-pseudo 0.1 \
+# 	-dist kullback \
+#     -min-overlap 1 \
+# 	-text \
+# 	$DATA_DIR/motif.dbs $DATA_DIR/motif.dbs \
+# > $DATA_DIR/motif.tomtom
+
+# # 产生不结合位点序列
+# for accession in "${accessions[@]}"
+# do
 #     seq_length_p1=$(
 #         sed -n '2{p;q}' \
-#             < $positive |
+#             < $DATA_DIR/$accession.positive.fasta |
 #         wc -c
 #     )
     
@@ -122,6 +156,6 @@ done
 #         -dna \
 #         -line $((seq_length_p1 - 1)) \
 #         -seed 63036
-#         $positive \
+#         $DATA_DIR/$accession.positive.fasta \
 #         $DATA_DIR/$accession.negative.fasta
 # done
