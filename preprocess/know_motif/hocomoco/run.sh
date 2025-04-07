@@ -13,30 +13,25 @@ done
 
 # 把下了数据的蛋白的motif提取出来
 mkdir -p c2h2_motifs
-while read MOTIF id accession
+while read uniprot_ac uniprot_id gene_symbol gene_synonyms
 do
-    meme-get-motif -id $id H13CORE_meme_format.meme |
-    sed -r "s/^MOTIF (.+)\.H13CORE\.0\.(.+)$/MOTIF $accession \1/" \
-        > c2h2_motifs/hocomoco_$accession.meme
-done < <(
-    while read uniprot_ac uniprot_id gene_symbol gene_synonyms
+    gene_names=(${uniprot_id%_*} $gene_symbol $gene_synonyms)
+    for gene_name in "${gene_names[@]}"
     do
-        gene_names=(${uniprot_id%_*} $gene_symbol $gene_synonyms)
-        for gene_name in "${gene_names[@]}"
-        do
-            if grep -i "^MOTIF $gene_name.H13CORE.0." H13CORE_meme_format.meme
-            then
-                echo $uniprot_ac
-                break
-            fi
-        done
-    done < <(
-        grep \
-            -f <(printf "%s\n" "${accessions[@]}") \
-            tf_masterlist.tsv |
-        cut -d $'\t' -f 6,8,10,11
-    ) |
-    sed -nr 'N;s/\n/ /;p'
+        id=$(grep -i "^MOTIF $gene_name.H13CORE.0." H13CORE_meme_format.meme | sed 's/^MOTIF //')
+        if [ -n "$id" ]
+        then
+            meme-get-motif -id $id H13CORE_meme_format.meme |
+            sed -r "s/^MOTIF (.+)\.H13CORE\.0\.(.+)$/MOTIF $uniprot_ac \1/" \
+                > c2h2_motifs/hocomoco_$uniprot_ac.meme
+            break
+        fi
+    done
+done < <(
+    grep \
+        -f <(printf "%s\n" "${accessions[@]}") \
+        tf_masterlist.tsv |
+    cut -d $'\t' -f 6,8,10,11
 )
 
 # 把下了数据的蛋白的motif合并在一起

@@ -13,49 +13,36 @@ done
 
 # 把下了数据的蛋白的motif提取出来
 mkdir -p c2h2_motifs
-while read pwm_id accession
+while read pwm_id uniprot_ids
 do
-    meme-get-motif -id $pwm_id JASPAR2024_CORE_non-redundant_pfms_meme.txt |
-    sed -r "s/^MOTIF (.+) (.+)$/MOTIF $accession \2/" \
-        > c2h2_motifs/jaspar_$accession.meme
-done < <(
-    while read pwm_id uniprot_ids
+    for accession in "${accessions[@]}"
     do
-        for accession in "${accessions[@]}"
-        do
-            if [[ $uniprot_ids =~ $accession ]]
-            then
-                printf "%s\t%s\n" $pwm_id $accession
-                break
-            fi
-        done
-    done < <(
-        gawk '
-            $0 ~ /^AC / {
-                pwm_id = $0;
-                sub(/^AC /, "", pwm_id);
-            }
-            $0 ~ /^CC uniprot_ids:/ {
-                uniprot_ids = $0;
-                sub(/^CC uniprot_ids:/, "", uniprot_ids)
-                sub(/ /, "", uniprot_ids)
-            }
-            $0 ~ /^\/\/$/ {
-                printf("%s\t%s\n", pwm_id, uniprot_ids)
-            }
-        ' \
-            < JASPAR2024_CORE_non-redundant_pfms_transfac.txt
-    )
+        if [[ $uniprot_ids =~ $accession ]]
+        then
+            meme-get-motif -id $pwm_id JASPAR2024_CORE_non-redundant_pfms_meme.txt |
+            sed -r "s/^MOTIF (.+) (.+)$/MOTIF $accession \2/" \
+                > c2h2_motifs/jaspar_$accession.meme
+            break
+        fi
+    done
+done < <(
+    gawk '
+        $0 ~ /^AC / {
+            pwm_id = $0;
+            sub(/^AC /, "", pwm_id);
+        }
+        $0 ~ /^CC uniprot_ids:/ {
+            uniprot_ids = $0;
+            sub(/^CC uniprot_ids:/, "", uniprot_ids)
+            sub(/ /, "", uniprot_ids)
+        }
+        $0 ~ /^\/\/$/ {
+            printf("%s\t%s\n", pwm_id, uniprot_ids)
+        }
+    ' \
+        < JASPAR2024_CORE_non-redundant_pfms_transfac.txt
 )
 
 # 把下了数据的蛋白的motif合并在一起
 meme2meme $(ls c2h2_motifs/jaspar_*.meme) \
     > jaspar_motifs.dbs
-
-
-
-
-
-
-
-
