@@ -14,3 +14,5 @@ tmp_b_c.txt
 **.pdb
 **.mmcif
 **/c2h2_motifs
+**.dbs
+**/JASPAR2024_*
