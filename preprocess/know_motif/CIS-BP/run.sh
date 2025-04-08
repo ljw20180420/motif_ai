@@ -12,10 +12,8 @@ do
 done
 
 # 把基因名字映射到uniprot accession
-tail -n+2 factorbook_chipseq_meme_motifs.tsv |
-cut -f3 |
-sort |
-uniq |
+grep -E "\sC2H2 ZF\s" TF_Information.txt |
+cut -f7 |
 ../uniprot_gene_to_id.py \
     "Gene_Name" \
     "UniProtKB" \
@@ -26,19 +24,23 @@ uniq |
 mkdir -p c2h2_motifs
 while read gene_name accession
 do
-    read ENC < <(
-        grep -E "\s$gene_name\s" factorbook_chipseq_meme_motifs.tsv |
+    read filename < <(
+        grep -E "\s$gene_name\s" TF_Information.txt |
         head -n1 |
         cut -f4
     )
-    if grep "^MOTIF ${ENC}_" complete-factorbook-catalog.meme.corrected
+    if [ "$filename" = "." ]
     then
-        read MOTIF id < <(
-            grep "^MOTIF ${ENC}_" complete-factorbook-catalog.meme.corrected | head -n1
-        )
-        meme-get-motif -id $id complete-factorbook-catalog.meme.corrected |
-        sed -r "s/^MOTIF .+$/MOTIF $accession $gene_name/" \
-            > c2h2_motifs/factorbook_$accession.meme
+        continue
+    fi
+    cut -f2-5 pwms_all_motifs/$filename.txt |
+    tail -n+2 |
+    matrix2meme |
+    sed -r "s/^MOTIF 1 .+$/MOTIF $accession $gene_name/" \
+        > c2h2_motifs/CIS-BP_$accession.meme
+    if [ ! -s "c2h2_motifs/CIS-BP_$accession.meme" ]
+    then
+        rm "c2h2_motifs/CIS-BP_$accession.meme"
     fi
 done < <(
     grep \
@@ -47,5 +49,5 @@ done < <(
 )
 
 # 把下了数据的蛋白的motif合并在一起
-meme2meme $(ls c2h2_motifs/factorbook_*.meme) \
-    > factorbook_motifs.dbs
+meme2meme $(ls c2h2_motifs/CIS-BP_*.meme) \
+    > CIS-BP_motifs.dbs

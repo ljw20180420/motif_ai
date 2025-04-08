@@ -31,9 +31,10 @@ bedtools maskfasta -fi $GENOME -bed $GENOME_BLACK -fo $GENOME_MASK
 # ./parse_ft.py \
 #     3> protein.tsv
 
-# 收集所以accession
+# 收集所有accession
+# 收集所有accession
 accessions=()
-for narrowPeak in $(ls $DATA_DIR/*.final.narrowPeak)
+for narrowPeak in $(ls $DATA_DIR/sorted/*.sorted.narrowPeak)
 do
     accession=$(basename ${narrowPeak%%.*})
     accessions+=($accession)

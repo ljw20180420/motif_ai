@@ -3,7 +3,7 @@
 # 切换运行路径到脚本路径
 cd $( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-# 收集所以accession
+# 收集所有accession
 accessions=()
 for narrowPeak in $(ls $DATA_DIR/sorted/*.sorted.narrowPeak)
 do
