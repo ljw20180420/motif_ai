@@ -11,8 +11,8 @@ do
     accessions+=($accession)
 done
 
+# 只用jaspar和hocomoco，其它数据库不稳定
 covered_accessions=()
-# for subdir in $(find -mindepth 1 -maxdepth 1 -type d)
 for subdir in "jaspar" "hocomoco"
 do
     subdir=$(basename $subdir)

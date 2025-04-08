@@ -3,9 +3,6 @@
 # 切换运行路径到脚本路径
 cd $( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-# mask基因组
-bedtools maskfasta -fi $GENOME -bed $GENOME_BLACK -fo $GENOME_MASK
-
 # # 下载蛋白文件
 # ./uniprot_download.py \
 #     'ft_zn_fing:C2H2' \
@@ -31,56 +28,83 @@ bedtools maskfasta -fi $GENOME -bed $GENOME_BLACK -fo $GENOME_MASK
 # ./parse_ft.py \
 #     3> protein.tsv
 
-# 收集所有accession
-# 收集所有accession
-accessions=()
-for narrowPeak in $(ls $DATA_DIR/sorted/*.sorted.narrowPeak)
+# # 收集所有accession
+# accessions=()
+# for narrowPeak in $(ls $DATA_DIR/sorted/*.sorted.narrowPeak)
+# do
+#     accession=$(basename ${narrowPeak%%.*})
+#     accessions+=($accession)
+# done
+
+accessions=(O88286)
+
+# # 把黑名单的peak去掉
+# # 把peak聚类
+# mkdir -p $DATA_DIR/clustered
+# cluster_max_distance="-50"
+# for accession in "${accessions[@]}"
+# do
+#     bedtools intersect -v \
+#         -a $DATA_DIR/sorted/$accession.sorted.narrowPeak \
+#         -b $GENOME_BLACK |
+#     bedtools cluster \
+#         -d $cluster_max_distance \
+#         > $DATA_DIR/clustered/$accession.clustered.narrowPeak
+# done
+
+# 每个聚类选择好的分位数，不选择最大值，防止异常值
+mkdir -p $DATA_DIR/selected
+cluster_quantile=0.9
+for accession in "${accessions[@]}"
 do
-    accession=$(basename ${narrowPeak%%.*})
-    accessions+=($accession)
+    ./peak_cluster_select.py \
+        < $DATA_DIR/clustered/$accession.clustered.narrowPeak \
+        $cluster_quantile \
+        > $DATA_DIR/selected/$accession.selected.narrowPeak
 done
 
-# accessions=(Q61164)
-
-# 选择最好的peak
+# 从选出的不重复的peak中选择p值最好的peak
+mkdir -p $DATA_DIR/best
 select_peak_num=30000
 for accession in "${accessions[@]}"
 do
-    sort -k7,7nr \
-        < $DATA_DIR/$accession.sorted.narrowPeak |
-    head -n $select_peak_num \
-        > $DATA_DIR/$accession.best.narrowPeak
+    sort \
+        < $DATA_DIR/selected/$accession.selected.narrowPeak \
+        -k8,8nr |
+    head \
+        -n $select_peak_num \
+        > $DATA_DIR/best/$accession.best.narrowPeak
 done
 
-# 提取peak的序列
-# The flag -U/--update-faidx is recommended to ensure the .fai file matches the FASTA file.
-for accession in "${accessions[@]}"
-do
-    seqkit subseq \
-        < $GENOME_MASK \
-        --update-faidx \
-        --bed $DATA_DIR/$accession.best.narrowPeak \
-        --up-stream 0 \
-        --down-stream 0 \
-        > $DATA_DIR/$accession.best.fasta
-done
+# # 提取peak的序列
+# # The flag -U/--update-faidx is recommended to ensure the .fai file matches the FASTA file.
+# for accession in "${accessions[@]}"
+# do
+#     seqkit subseq \
+#         < $GENOME_MASK \
+#         --update-faidx \
+#         --bed $DATA_DIR/$accession.best.narrowPeak \
+#         --up-stream 0 \
+#         --down-stream 0 \
+#         > $DATA_DIR/$accession.best.fasta
+# done
 
-# 预测motif
-for accession in "${accessions[@]}"
-do
-    streme \
-        --text \
-        --thres 0.05 \
-        --nmotifs 3 \
-        --minw 10 \
-        --maxw 30 \
-        --p $DATA_DIR/$accession.best.fasta \
-        > $DATA_DIR/$accession.meme
-    meme2images -png $DATA_DIR/$accession.meme $DATA_DIR/$accession
-    # png=$(ls $DATA_DIR/$accession/*)
-    # mv $png $DATA_DIR/$accession.png
-    # rm -r $DATA_DIR/$accession
-done
+# # 预测motif
+# for accession in "${accessions[@]}"
+# do
+#     streme \
+#         --text \
+#         --thres 0.05 \
+#         --nmotifs 3 \
+#         --minw 10 \
+#         --maxw 30 \
+#         --p $DATA_DIR/$accession.best.fasta \
+#         > $DATA_DIR/$accession.meme
+#     meme2images -png $DATA_DIR/$accession.meme $DATA_DIR/$accession
+#     # png=$(ls $DATA_DIR/$accession/*)
+#     # mv $png $DATA_DIR/$accession.png
+#     # rm -r $DATA_DIR/$accession
+# done
 
 # 
 
