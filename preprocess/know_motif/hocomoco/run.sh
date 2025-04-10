@@ -25,9 +25,9 @@ done < <(
 
 # 把下了数据的蛋白的motif提取出来
 mkdir -p c2h2_motifs
-# 先找对应的基因名
 for ((i=0; i<"${#accessions[@]}"; i++))
 do
+    cmd_id=""
     while read uniprot_ac uniprot_id gene_symbol gene_synonyms
     do
         names=(${uniprot_id%_*} $gene_symbol $gene_synonyms)
@@ -40,49 +40,28 @@ do
                 break
             fi
         done
-        if [ "$name_match" = "true" ]
+        if [ "${accessions[$i]}" = "$uniprot_ac" ] || [ "$name_match" = "true" ]
         then
             for name in "${names[@]}"
             do
                 id=$(grep -i "^MOTIF $name.H13CORE.0." H13CORE_meme_format.meme | sed 's/^MOTIF //')
                 if [ -n "$id" ]
                 then
-                    meme-get-motif -id $id H13CORE_meme_format.meme |
-                    sed -r "s/^MOTIF .+$/MOTIF ${accessions[$i]} ${gene_names[$i]}/" \
-                        > "c2h2_motifs/hocomoco_${accessions[$i]}.meme"
+                    cmd_id="$cmd_id -id $id"
                     break
                 fi
             done
-            break
         fi
     done < <(
         cut -d $'\t' -f 6,8,10,11 tf_masterlist.tsv
     )
-done
-# 再找对应的uniprot accession来覆盖基因名的结果
-for ((i=0; i<"${#accessions[@]}"; i++))
-do
-    while read uniprot_ac uniprot_id gene_symbol gene_synonyms
-    do
-        names=(${uniprot_id%_*} $gene_symbol $gene_synonyms)
-        if [ "${accessions[$i]}" = "$uniprot_ac" ]
-        then
-            for name in "${names[@]}"
-            do
-                id=$(grep -i "^MOTIF $name.H13CORE.0." H13CORE_meme_format.meme | sed 's/^MOTIF //')
-                if [ -n "$id" ]
-                then
-                    meme-get-motif -id $id H13CORE_meme_format.meme |
-                    sed -r "s/^MOTIF .+$/MOTIF ${accessions[$i]} ${gene_names[$i]}/" \
-                        > "c2h2_motifs/hocomoco_${accessions[$i]}.meme"
-                        break
-                fi
-            done
-            break
-        fi
-    done < <(
-        cut -d $'\t' -f 6,8,10,11 tf_masterlist.tsv
-    )
+    if [ -n "$cmd_id" ]
+    then
+        meme-get-motif $cmd_id \
+            H13CORE_meme_format.meme |
+        sed -r "s/^MOTIF .+$/MOTIF hocomoco_${accessions[$i]} ${gene_names[$i]}/" \
+            > "c2h2_motifs/hocomoco_${accessions[$i]}.meme"
+    fi
 done
 
 # 把下了数据的蛋白的motif合并在一起

@@ -11,42 +11,43 @@ do
     accessions+=($accession)
 done
 
-# 把基因名字映射到uniprot accession
-grep -E "\sC2H2 ZF\s" TF_Information.txt |
-cut -f7 |
-../uniprot_gene_to_id.py \
-    "Gene_Name" \
-    "UniProtKB" \
-    10090 \
-    > ids.map
+# 把uniprot accession映射到基因名字
+gene_names=()
+while read accession gene_name
+do
+    gene_names+=($gene_name)
+done < <(
+    printf "%s\n" "${accessions[@]}" |
+    ../uniprot_gene_to_id.py \
+        "UniProtKB_AC-ID" \
+        "Gene_Name"
+)
 
 # 把下了数据的蛋白的motif提取出来
 mkdir -p c2h2_motifs
-while read gene_name accession
+for ((i=0; i<"${#accessions[@]}"; i++))
 do
-    read filename < <(
-        grep -E "\s$gene_name\s" TF_Information.txt |
-        head -n1 |
+    while read filename
+    do
+        if [ "$filename" = "." ]
+        then
+            continue
+        fi
+        cut -f2-5 pwms_all_motifs/$filename.txt |
+        tail -n+2
+        echo
+    done < <(
+        grep -iE "\s${gene_names[$i]}\s" TF_Information.txt |
         cut -f4
-    )
-    if [ "$filename" = "." ]
-    then
-        continue
-    fi
-    cut -f2-5 pwms_all_motifs/$filename.txt |
-    tail -n+2 |
+    ) |
     matrix2meme |
-    sed -r "s/^MOTIF 1 .+$/MOTIF $accession $gene_name/" \
-        > c2h2_motifs/CIS-BP_$accession.meme
-    if [ ! -s "c2h2_motifs/CIS-BP_$accession.meme" ]
+    sed -r "s/^MOTIF [0-9]+ .+$/MOTIF CIS-BP_${accessions[$i]} ${gene_names[$i]}/" \
+        > c2h2_motifs/CIS-BP_${accessions[$i]}.meme
+    if [ ! -s "c2h2_motifs/CIS-BP_${accessions[$i]}.meme" ]
     then
-        rm "c2h2_motifs/CIS-BP_$accession.meme"
+        rm "c2h2_motifs/CIS-BP_${accessions[$i]}.meme"
     fi
-done < <(
-    grep \
-        -f <(printf "%s\n" "${accessions[@]}") \
-        ids.map
-)
+done
 
 # 把下了数据的蛋白的motif合并在一起
 meme2meme $(ls c2h2_motifs/CIS-BP_*.meme) \

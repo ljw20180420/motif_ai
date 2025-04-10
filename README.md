@@ -1,5 +1,6 @@
 TODO
 ```list
+Seems install transformers by conda will install pytorch automatically, so do not install pytorch by pip.
 Write custom RoPE model including cross-attention.
 ```
 

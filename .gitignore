@@ -1,4 +1,5 @@
 **/__pycache__
+.conda
 database/logs
 pipeline
 results
@@ -15,6 +16,9 @@ tmp_b_c.txt
 **.mmcif
 **/c2h2_motifs
 **.dbs
+preprocess/protein.tsv
+preprocess/secondary_structure.tsv
+preprocess/uniprot_mouse_C2H2_protein.tsv
 preprocess/know_motif/jaspar/JASPAR2024_*
 preprocess/know_motif/hocomoco/H13CORE_meme_format.meme
 preprocess/know_motif/hocomoco/tf_masterlist.tsv

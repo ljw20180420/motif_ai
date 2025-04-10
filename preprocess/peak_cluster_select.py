@@ -1,66 +1,31 @@
 #!/usr/bin/env python
 
 import sys
-import os
 from signal import signal, SIGPIPE, SIG_IGN
-from pathlib import Path
-import pandas as pd
+import numpy as np
 
 signal(SIGPIPE, SIG_IGN)
 
 quantile_value = float(sys.argv[1])
 
-df = pd.read_table(
-    sys.stdin,
-    header=None,
-    names=[
-        "chr",
-        "start",
-        "end",
-        "name",
-        "score",
-        "strand",
-        "signalValue",
-        "pValue",
-        "qValue",
-        "peak",
-        "cluster",
-    ],
-    na_filter=False,
-)
 
-# 不用最大值，用quantile，保险一点。
-df["pValue_quantile"] = (
-    df["pValue"]
-    .groupby(df["cluster"])
-    .quantile(quantile_value)
-    .loc[df["cluster"]]
-    .reset_index(drop=True)
-)
-df["pValue_select"] = (
-    df.loc[df["pValue"] >= df["pValue_quantile"]]
-    .groupby("cluster")["pValue"]
-    .min()
-    .loc[df["cluster"]]
-    .reset_index(drop=True)
-)
+def output_select(pValues, lines, quantile_value, fd):
+    pValues = np.array(pValues)
+    pValue_thres = np.quantile(pValues, quantile_value)
+    pValues[pValues < pValue_thres] = np.inf
+    idx = np.argmin(pValues)
+    fd.write(lines[idx])
 
-try:
-    df.loc[
-        df["pValue"] == df["pValue_select"],
-        [
-            "chr",
-            "start",
-            "end",
-            "name",
-            "score",
-            "strand",
-            "signalValue",
-            "pValue",
-            "qValue",
-            "peak",
-            "cluster",
-        ],
-    ].to_csv(sys.stdout, sep="\t", header=False, index=False)
-except BrokenPipeError:
-    pass
+
+precluster = -1
+for line in sys.stdin:
+    _, _, _, _, _, _, _, pValue, _, _, cluster = line.strip().split()
+    pValue, cluster = float(pValue), int(cluster)
+    if cluster != precluster:
+        if precluster != -1:
+            output_select(pValues, lines, quantile_value, sys.stdout)
+        lines, pValues = [], []
+    lines.append(line)
+    pValues.append(pValue)
+    precluster = cluster
+output_select(pValues, lines, quantile_value, sys.stdout)

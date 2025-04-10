@@ -64,6 +64,7 @@ do
     # 先找对应的基因名
     for ((i=0; i<"${#accessions[@]}"; i++))
     do
+        cmd_id=""
         for ((j=0; j<"${#ids[@]}"; ++j))
         do
             name_match="false"
@@ -75,28 +76,18 @@ do
                     break
                 fi
             done <<< "${names[$j]}"
-            if [ "$name_match" = "true" ]
+            if [[ "${uniprot_idss[$j]}" =~ "${accessions[$i]}" ]] || [ "$name_match" = "true" ]
             then
-                meme-get-motif -id "${ids[$j]}" $meme |
-                sed -r "s/^MOTIF .+$/MOTIF ${accessions[$i]} ${gene_names[$i]}/" \
-                    > "c2h2_motifs/jaspar_${accessions[$i]}.meme"
-                break
+                cmd_id="$cmd_id -id ${ids[$j]}"
             fi
         done
-    done
-    # 再找对应的uniprot accession来覆盖基因名的结果
-    for ((i=0; i<"${#accessions[@]}"; i++))
-    do
-        for ((j=0; j<"${#ids[@]}"; ++j))
-        do
-            if [[ "${uniprot_idss[$j]}" =~ "${accessions[$i]}" ]]
-            then
-                meme-get-motif -id "${ids[$j]}" $meme |
-                sed -r "s/^MOTIF .+$/MOTIF ${accessions[$i]} ${gene_names[$i]}/" \
-                    > "c2h2_motifs/jaspar_${accessions[$i]}.meme"
-                break
-            fi
-        done
+        if [ -n "$cmd_id" ]
+        then
+            meme-get-motif $cmd_id \
+                $meme |
+            sed -r "s/^MOTIF .+$/MOTIF jaspar_${accessions[$i]} ${gene_names[$i]}/" \
+                > "c2h2_motifs/jaspar_${accessions[$i]}.meme"
+        fi
     done
 done
 
