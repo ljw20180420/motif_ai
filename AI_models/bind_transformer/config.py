@@ -13,6 +13,7 @@ def get_config(config_files):
     parser = configargparse.ArgumentParser(
         description="Arguments for transcriptor binding roformer model.",
         default_config_files=config_files,
+        auto_env_var_prefix="BIND_TRANSFORMER_",
     )
 
     # command parameters

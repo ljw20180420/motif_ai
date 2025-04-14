@@ -5,18 +5,19 @@ import os
 # 把运行文件夹切换为脚本文件夹
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
+import sys
 import re
 import pandas as pd
 import numpy as np
 
 df = pd.read_table(
-    "uniprotkb_ft_zn_fing_C2H2_AND_organism_2025_03_28.tsv",
-    sep="\t",
+    sys.stdin,
     header=0,
     na_filter=False,
 )
 
-df_sec = pd.read_table("secondary_structure.tsv", sep="\t", header=0, na_filter=False)
+with open(4, "r") as fd:
+    df_sec = pd.read_table(fd, header=0, na_filter=False)
 
 df = df.merge(df_sec, left_on="Entry", right_on="accession", how="left").fillna("")
 

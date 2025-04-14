@@ -183,7 +183,6 @@ class SelfAttention(Attention):
             query, key = self.apply_rotary_position_embeddings(
                 sinusoidal_pos, query, key
             )
-
         return self.attention(query, key, value, attention_mask)
 
 

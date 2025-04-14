@@ -4,13 +4,13 @@
 cd $( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # 下载小鼠最新基因组GRCm39
-# ../database/datasets.sh
+# ./datasets.sh
 
 # 下载sra原始数据
-# ../database/sra-tools.sh SraAccList.txt
+# ./sra-tools.sh SraAccList.txt
 
 # 提取fastq文件
-# ../fasterq_dump.sh SraAccList.txt
+# ./fasterq_dump.sh SraAccList.txt
 
 # 压缩fastq文件
 # for fastq in $(find $SRA_CACHE/sra -name "*.fastq")
@@ -19,4 +19,4 @@ cd $( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 # done
 
 # 运行nextflow的chipseq pipeline
-# nextflow/runs/chipseq/test/run.sh
+# ../nextflow/runs/chipseq/test/run.sh

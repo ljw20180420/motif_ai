@@ -1,10 +1,12 @@
 bioconda::bioframe
 conda-forge::biopython
 bioconda::blast
+bioconda::ucsc-bedclip
 conda-forge::configargparse
 conda-forge::datasets
 conda-forge::diffusers
 conda-forge::transformers
+conda-forge::accelerate
 conda-forge::gradio
 bioconda::entrez-direct
 conda-forge::ncbi-datasets-cli

@@ -26,6 +26,8 @@ cd $( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 # # 去掉uniprot和alphafoldDB蛋白长度不相同的蛋白
 # # 在原来9种二级结构（包括没有结构）的基础上，标注KRAB和锌指蛋白结构
 # ./parse_ft.py \
+#     < uniprot_mouse_C2H2_protein.tsv \
+#     4< secondary_structure.tsv \
 #     3> protein.tsv
 
 # 收集所有accession
@@ -61,235 +63,44 @@ done
 #         > $DATA_DIR/selected/$accession.selected.narrowPeak
 # done
 
-# # 从选出的不重复的peak中选择p值最好的peak
-# mkdir -p $DATA_DIR/best
-# select_peak_num=30000
+# # 去掉太宽太窄的峰，去掉太显著太不显著的峰
+# mkdir -p $DATA_DIR/filtered
 # for accession in "${accessions[@]}"
 # do
-#     sort -k8,8gr \
-#         < $DATA_DIR/selected/$accession.selected.narrowPeak |
-#     head -n $select_peak_num \
-#         > $DATA_DIR/best/$accession.best.narrowPeak
-# done
-
-# # 从最好的peak的summit周围截取固定长度
-# mkdir -p $DATA_DIR/same
-# centrimo_length=500
-# for accession in "${accessions[@]}"
-# do
-#     gawk -v centrimo_length=$centrimo_length '
-#         {
-#             start=$2
-#             end=$3
-#             summit=$10
-#             if (summit - start <= int(centrimo_length / 2)) {
-#                 new_start = start
-#                 new_end = new_start + centrimo_length
-#                 new_end = new_end <= end ? new_end : end
-#             } else if (end - summit <= int(centrimo_length / 2)) {
-#                 new_end = end
-#                 new_start = new_end - centrimo_length
-#                 new_start = new_start >= start ? new_start : start
-#             } else {
-#                 new_start = summit - int(centrimo_length / 2)
-#                 new_end = new_start + centrimo_length
-#             }
-#             printf("%s\t%d\t%d\n", $1, new_start, new_end)
-#         }
-#     ' \
-#         < $DATA_DIR/best/$accession.best.narrowPeak \
-#         > $DATA_DIR/same/$accession.same.bed
-# done
-
-# # 提取peak的序列
-# for accession in "${accessions[@]}"
-# do
-#     bed2fasta \
-#         -o $DATA_DIR/same/$accession.same.fasta \
-#         $DATA_DIR/same/$accession.same.bed \
-#         $GENOME
-# done
-
-# # 预测motif
-# mkdir -p $DATA_DIR/meme-chip
-# for accession in "${accessions[@]}"
-# do
-#     meme-chip \
-#         -oc $DATA_DIR/meme-chip/$accession \
-#         -seed 63036 \
-#         -db know_motif/jaspar/jaspar_motifs.dbs \
-#         -db know_motif/hocomoco/hocomoco_motifs.dbs \
-#         -dna \
-#         -filter-thresh 0.05 \
-#         -minw 10 \
-#         -maxw 30 \
-#         -ccut 100 \
-#         -meme-nmotifs 3 \
-#         -meme-norand \
-#         -meme-mod oops \
-#         -streme-nmotifs 3 \
-#         -spamo-skip \
-#         -fimo-skip \
-#         $DATA_DIR/same/$accession.same.fasta
-# done
-
-# # 选择和已知motif最像的motif
-# # 否则如何不是wiz，选择centrimo报告的motif
-# # 否则如果有hocomoco motif，选hocomoco motif
-# # 否则如果有jaspar motif，选jaspar motif
-# # 否则选择combine.meme的第一个motif
-# mkdir -p $DATA_DIR/motifs
-# situations=()
-# for accession in "${accessions[@]}"
-# do
-#     best_line=$(
-#         cat \
-#             <(
-#                 head -n-4 \
-#                     < $DATA_DIR/meme-chip/$accession/meme_tomtom_out/tomtom.tsv
-#             ) \
-#             <(
-#                 head -n-4 \
-#                     < $DATA_DIR/meme-chip/$accession/streme_tomtom_out/tomtom.tsv
-#             ) |
-#         grep -F $accession |
-#         sort -k5,5g |
-#         head -n1
+#     wlb=$(
+#         awk '{print $3 - $2}' \
+#             < $DATA_DIR/selected/$accession.selected.narrowPeak |
+#         sort -n |
+#         perl -e '$d=0.1;@l=<>;print $l[int($d*$#l)]'
 #     )
-#     id=$(
-#         sed -r 's/^([^\t]+)\t.+$/\1/' \
-#             <<<$best_line
+#     wub=$(
+#         awk '{print $3 - $2}' \
+#             < $DATA_DIR/selected/$accession.selected.narrowPeak |
+#         sort -n |
+#         perl -e '$d=0.9;@l=<>;print $l[int($d*$#l)]'
 #     )
-#     if [ -n "$id" ] # 找到了和已知motif像的motif
-#     then
-#         is_streme='^[0-9]+-'
-#         if [[ $id =~ $is_streme ]]
-#         then
-#             discovery_program="streme"
-#         else
-#             discovery_program="meme"
-#         fi
-#         strand=$(
-#             cut -f10 \
-#                 <<<$best_line
-#         )
-#         if [ "$strand" = "+" ]
-#         then
-#             revcomp=""
-#         else
-#             revcomp="-rc"
-#         fi
-#         db_source=$(
-#             cut -f2 \
-#                 <<<$best_line |
-#             grep -oE "jaspar|hocomoco|factorbook|CIS-BP"
-#         )
-#         meme-get-motif $revcomp -id $id \
-#             $DATA_DIR/meme-chip/$accession/${discovery_program}_out/${discovery_program}.txt |
-#         sed -r "s/^MOTIF .+$/MOTIF $accession/" \
-#             > $DATA_DIR/motifs/$accession.meme
-#         situations+=("${discovery_program}-$db_source")
-#     else # 找不到和已知motif像的motif
-#         found_motif="false"
-#         if [ "$accession" != "O88286" ] # 如果不是wiz
-#         then
-#             db_id=$(
-#                 head -n-4 \
-#                     $DATA_DIR/meme-chip/$accession/centrimo_out/centrimo.tsv |
-#                 grep -F $accession |
-#                 sort -k5,5g |
-#                 head -n1 |
-#                 cut -f2
-#             )
-#             if [ -n "$db_id" ] # 如果centrimo找到了数据库中的已知motif
-#             then
-#                 db_source=$(
-#                     grep -oE "jaspar|hocomoco|factorbook|CIS-BP" \
-#                         <<<$db_id
-#                 )
-#                 meme-get-motif -id $db_id \
-#                     know_motif/$db_source/${db_source}_motifs.dbs |
-#                 sed -r "s/^MOTIF .+$/MOTIF $accession/" \
-#                     > $DATA_DIR/motifs/$accession.meme
-#                 situations+=("centrimo-$db_source")
-#                 found_motif="true"
-#             else
-#                 for db_source in hocomoco jaspar
-#                 do
-#                     if grep -F "${db_source}_${accession}" know_motif/${db_source}/${db_source}_motifs.dbs > /dev/null # db_source有motif
-#                     then
-#                         meme-get-motif -id "${db_source}_${accession}" \
-#                             know_motif/${db_source}/${db_source}_motifs.dbs |
-#                         sed -r "s/^MOTIF .+$/MOTIF $accession/" \
-#                             > $DATA_DIR/motifs/$accession.meme
-#                         situations+=("$db_source")
-#                         found_motif="true"
-#                         break
-#                     fi
-#                 done
-#             fi
-#         fi
-#         if [ "${found_motif}" = "false" ] # 之前的方法都没找到motif
-#         then
-#             meme-get-motif -id 1 \
-#                 $DATA_DIR/meme-chip/$accession/combined.meme |
-#             sed -r "s/^MOTIF .+$/MOTIF $accession/" \
-#                 > $DATA_DIR/motifs/$accession.meme
-#             situations+=("combine1")
-#         fi
-#     fi    
+#     plb=$(
+#         awk '{print $8}' \
+#             < $DATA_DIR/selected/$accession.selected.narrowPeak |
+#         sort -g |
+#         perl -e '$d=0.1;@l=<>;print $l[int($d*$#l)]'
+#     )
+#     pub=$(
+#         awk '{print $8}' \
+#             < $DATA_DIR/selected/$accession.selected.narrowPeak |
+#         sort -g |
+#         perl -e '$d=0.9;@l=<>;print $l[int($d*$#l)]'
+#     )
+#     awk -v wlb=$wlb -v wub=$wub -v plb=$plb -v pub=$pub '$3 - $2 <= wub && $3 - $2 >= wlb && $8 >= plb && $8 <= pub {print}' \
+#         < $DATA_DIR/selected/$accession.selected.narrowPeak \
+#         > $DATA_DIR/filtered/$accession.filtered.narrowPeak
 # done
 
-# # 产生motif背靠背比较
-# mkdir -p $DATA_DIR/images
-# > $DATA_DIR/images/side_by_side.md
-# for ((i=0;i<${#accessions[@]};++i))
-# do
-#     accession="${accessions[$i]}"
-#     meme2images -png \
-#         $DATA_DIR/motifs/$accession.meme \
-#         $DATA_DIR/images/$accession
-#     if [ -s "know_motif/jaspar/c2h2_motifs/jaspar_$accession.meme" ]
-#     then
-#         meme2images -png \
-#             know_motif/jaspar/c2h2_motifs/jaspar_$accession.meme \
-#             $DATA_DIR/images/$accession
-#     fi
-#     if [ -s "know_motif/hocomoco/c2h2_motifs/hocomoco_$accession.meme" ]
-#     then
-#         meme2images -png \
-#             know_motif/hocomoco/c2h2_motifs/hocomoco_$accession.meme \
-#             $DATA_DIR/images/$accession
-#     fi
-#     printf \
-#         "<p float=\"left\">\n  <img src=\"%s/logo%s.png\" title=\"%s\" alt=\"%s\" width=\"200\" />\n  <img src=\"%s/logojaspar_%s.png\" title=\"jaspar_%s\" alt=\"jaspar_%s\" width=\"200\" />\n  <img src=\"%s/logohocomoco_%s.png\" title=\"hocomoco_%s\" alt=\"hocomoco_%s\" width=\"200\" />\n  <span>\"%s\"</span>\n</p>\n" \
-#         $accession $accession $accession $accession $accession $accession $accession $accession $accession $accession $accession $accession "${situations[$i]}" \
-#         >> $DATA_DIR/images/side_by_side.md
-# done
-
-# # 搜索motif
-# mkdir -p $DATA_DIR/sites
+# # 根据蛋白的锌指数量调整peak大小
+# mkdir -p $DATA_DIR/sized
 # for accession in "${accessions[@]}"
 # do
-#     bed2fasta \
-#         -o $DATA_DIR/selected/$accession.selected.fasta \
-#         $DATA_DIR/selected/$accession.selected.narrowPeak \
-#         $GENOME
-#     fimo \
-#         --best-site \
-#         --thresh 1 \
-#         --no-qvalue \
-#         --max-strand \
-#         $DATA_DIR/motifs/$accession.meme \
-#         $DATA_DIR/selected/$accession.selected.fasta \
-#         > $DATA_DIR/sites/$accession.site
-# done
-
-# # 提取结合位点序列
-# # 得到每个蛋白的锌指数量
-# mkdir -p $DATA_DIR/positive
-# for accession in "${accessions[@]}"
-# do
+#     # 得到每个蛋白的锌指数量
 #     zinc_num=$(
 #         grep -F "$accession" \
 #             < uniprot_mouse_C2H2_protein.tsv |
@@ -297,27 +108,39 @@ done
 #             sed -r '/^[^1-9]/s/^.+$/1/'
 #     )
 #     seq_len=$((10 + zinc_num * 3))
-#     motif_len=$(awk '{print $3 - $2; exit}' $DATA_DIR/sites/$accession.site)
-#     if [ $seq_len -lt $motif_len ]
-#     then
-#         UP_EXT=0
-#         DOWN_EXT=0
-#     else
-#         TOTAL_EXT=$((seq_len - motif_len))
-#         UP_EXT=$((TOTAL_EXT / 2))
-#         DOWN_EXT=$((TOTAL_EXT - UP_EXT))
-#     fi
-#     # --line-width 0 防止fasta换行
-#     seqkit subseq \
-#         < $GENOME \
-#         --update-faidx \
-#         --line-width 0 \
-#         --bed $DATA_DIR/sites/$accession.site \
-#         --up-stream $UP_EXT \
-#         --down-stream $DOWN_EXT |
-#     sed '2~2y/acgt/ACGT/' \
-#         > $DATA_DIR/positive/$accession.positive
+#     bedClip \
+#         <(
+#             awk -v seq_len=$seq_len '
+#                 {
+#                     start = $2
+#                     end = $3
+#                     summit = $10
+#                     new_start = start + summit - int(seq_len / (end - start) * summit)
+#                     new_end = new_start + seq_len
+#                     printf("%s\t%d\t%d\n", $1, new_start, new_end)
+#                 }
+#             ' $DATA_DIR/filtered/$accession.filtered.narrowPeak
+#         ) \
+#         $GENOME_SIZE \
+#         $DATA_DIR/sized/$accession.sized.narrowPeak
 # done
+
+# 提取结合位点序列
+mkdir -p $DATA_DIR/positive
+for accession in "${accessions[@]}"
+do
+    # --line-width 0 防止fasta换行
+    seqkit subseq \
+        < $GENOME \
+        --update-faidx \
+        --line-width 0 \
+        --bed $DATA_DIR/sized/$accession.sized.narrowPeak |
+    sed '2~2y/acgt/ACGT/' |
+    sed -nr 'N;s/\n/\t/;p' |
+    grep -vE "\sN|[ACGT]N" |
+    sed -r 's/\t/\n/'\
+        > $DATA_DIR/positive/$accession.positive
+done
 
 # 产生不结合位点序列
 mkdir -p $DATA_DIR/negative
@@ -331,4 +154,35 @@ do
         -seed 63036 \
         $DATA_DIR/positive/$accession.positive \
         $DATA_DIR/negative/$accession.negative
+done
+
+# 生成训练数据集
+mkdir -p $DATA_DIR/train_data/DNA_data
+> $DATA_DIR/train_data/protein_data.csv
+for ((i=0;i<${#accessions[@]};++i))
+do
+    grep -F "${accessions[$i]}" \
+        protein.tsv |
+    cut -f1,4,5 |
+    tr '\t' ',' \
+        >> $DATA_DIR/train_data/protein_data.csv
+    (
+        sed -nr '2~2{s/$/,1.0/;p}' \
+            "$DATA_DIR/positive/${accessions[$i]}.positive"
+        sed -nr '2~2{s/$/,0.0/;p}' \
+            "$DATA_DIR/negative/${accessions[$i]}.negative"
+    )
+    sed -r "s/^/$i,/" \
+        > "$DATA_DIR/train_data/DNA_data/${accessions[$i]}.csv"
+done
+
+# 生成小训练数据集
+mkdir -p $DATA_DIR/small_train_data/DNA_data
+cp $DATA_DIR/train_data/protein_data.csv $DATA_DIR/small_train_data/protein_data.csv
+small_line_num=3000
+for accession in "${accessions[@]}"
+do
+    shuf \
+        -n $small_line_num $DATA_DIR/train_data/DNA_data/${accession}.csv \
+        > $DATA_DIR/small_train_data/DNA_data/${accession}.csv
 done

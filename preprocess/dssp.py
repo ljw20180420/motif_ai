@@ -39,7 +39,6 @@ with open(3, "w") as fd:
         file = file[1]
         if not file.endswith(".pdb"):
             continue
-        sys.stdout.write(file + "\n")
         p = PDBParser()
         id = os.path.splitext(file)[0]
         structure = p.get_structure(id, f"get_mmcif_from_alphafoldDB/{file}")

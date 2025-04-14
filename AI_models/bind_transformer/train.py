@@ -1,28 +1,46 @@
 from transformers import Trainer, TrainingArguments
+from datasets import Dataset
+from pathlib import Path
+from logging import Logger
+from typing import List
+from torch import Tensor
 from .model import BindTransformerConfig, BindTransformerModel
 from .load_data import data_collector, outputs_train
 
 
 def train(
-    ds,
-    train_output_dir,
-    seed,
-    batch_size,
-    optimizer,
-    learning_rate,
-    scheduler,
-    num_epochs,
-    warmup_ratio,
-    vocab_size,
-    hidden_size,
-    num_hidden_layers,
-    num_attention_heads,
-    intermediate_size,
-    hidden_dropout_prob,
-    attention_probs_dropout_prob,
-    max_position_embeddings,
-    pos_weight,
-    logger,
+    ds: Dataset,
+    proteins: List[Tensor],
+    seconds: List[Tensor],
+    train_output_dir: Path,
+    seed: int,
+    device: str,
+    logger: Logger,
+    batch_size: int,
+    optimizer: str,
+    learning_rate: float,
+    scheduler: str,
+    num_epochs: float,
+    warmup_ratio: float,
+    protein_animo_acids_vocab_size: int,
+    protein_secondary_structure_vocab_size: int,
+    protein_coarse_grained_size: int,
+    protein_max_position_embeddings: int,
+    DNA_vocab_size: int,
+    DNA_max_position_embeddings: int,
+    embedding_size: int,
+    hidden_size: int,
+    num_attention_heads: int,
+    num_hidden_layers: int,
+    chunk_size_feed_forward: int,
+    intermediate_size: int,
+    hidden_act: str,
+    hidden_dropout_prob: float,
+    attention_probs_dropout_prob: float,
+    initializer_range: float,
+    layer_norm_eps: float,
+    rotary_value: bool,
+    pos_weight: float,
 ):
     """
     For the meanings of parameters, execute: AI_models/run_bind_transformer.py -h.
@@ -42,15 +60,26 @@ def train(
     BindTransformerModel.register_for_auto_class()
     bind_transformer_model = BindTransformerModel(
         BindTransformerConfig(
-            vocab_size,
+            protein_animo_acids_vocab_size,
+            protein_secondary_structure_vocab_size,
+            protein_coarse_grained_size,
+            protein_max_position_embeddings,
+            DNA_vocab_size,
+            DNA_max_position_embeddings,
+            embedding_size,
             hidden_size,
-            num_hidden_layers,
             num_attention_heads,
+            num_hidden_layers,
+            chunk_size_feed_forward,
             intermediate_size,
+            hidden_act,
             hidden_dropout_prob,
             attention_probs_dropout_prob,
-            max_position_embeddings,
+            initializer_range,
+            layer_norm_eps,
+            rotary_value,
             pos_weight,
+            seed,
         )
     )
 
@@ -64,6 +93,7 @@ def train(
         load_best_model_at_end=True,
         remove_unused_columns=False,
         label_names=BindTransformerConfig.label_names,
+        use_cpu=True if device == "cpu" else False,
     )
     training_args.set_dataloader(
         train_batch_size=batch_size, eval_batch_size=batch_size
@@ -77,7 +107,9 @@ def train(
         args=training_args,
         train_dataset=ds["train"],
         eval_dataset=ds["validation"],
-        data_collator=lambda examples: data_collector(examples, outputs_train),
+        data_collator=lambda examples: data_collector(
+            examples, proteins, seconds, outputs_train
+        ),
     )
 
     logger.info("train model")
