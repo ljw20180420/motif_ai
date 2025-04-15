@@ -1,7 +1,6 @@
 TODO
 ```list
-Seems install transformers by conda will install pytorch automatically, so do not install pytorch by pip.
-Write custom RoPE model including cross-attention.
+Use better negative data than random shuffle. Maybe filter by motif?
 ```
 
 ### Install

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import torch
 from torch.utils.data import DataLoader
 import shutil
 from datasets import Dataset
@@ -7,13 +8,15 @@ from pathlib import Path
 from logging import Logger
 from typing import List
 from torch import Tensor
-import inspect
 from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
+import numpy as np
 from .model import BindTransformerModel
 from .pipeline import BindTransformerPipeline
 from .load_data import data_collector, outputs_test
+from .metric import compute_metrics_probabilities
 
 
+@torch.no_grad()
 def test(
     ds: Dataset,
     proteins: List[Tensor],
@@ -43,8 +46,14 @@ def test(
     )
 
     logger.info("test pipeline")
+    bind_probabilities, binds = [], []
     for batch in test_dataloader:
-        output = pipe(batch)
+        bind_probabilities.append(pipe(batch).cpu().numpy())
+        binds.append(batch["bind"].cpu().numpy())
+
+    results = compute_metrics_probabilities(
+        np.concat(bind_probabilities), np.concat(binds)
+    )
 
     logger.info("save pipeline")
     pipe.save_pretrained(save_directory=pipeline_output_dir)
@@ -56,12 +65,13 @@ def test(
             if name.startswith(f"{PREFIX_CHECKPOINT_DIR}-") or name.startswith("_")
         ]
 
-    shutil.copyfile("AI_models/bind_transformer/pipeline.py", "pipeline/pipeline.py")
+    shutil.copyfile("bind_transformer/pipeline.py", pipeline_output_dir / "pipeline.py")
 
     shutil.copytree(
         train_output_dir,
-        pipeline_output_dir
-        / inspect.signature(BindTransformerPipeline)[0],  # replace by pipeline module
+        pipeline_output_dir / list(pipe.components.keys())[0],
         ignore=ignore_func,
         dirs_exist_ok=True,
     )
+
+    return results

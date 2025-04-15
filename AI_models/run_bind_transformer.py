@@ -5,15 +5,7 @@ import os
 # 把运行文件夹切换为脚本文件夹
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-from datasets import load_dataset, Features, Value
-
 from bind_transformer.config import get_config, get_logger
-
-from bind_transformer.load_data import (
-    protein_tokenizer,
-    second_tokenizer,
-    train_validation_test_split,
-)
 
 args = get_config(
     [
@@ -22,6 +14,21 @@ args = get_config(
     ]
 )
 logger = get_logger(args.log_level)
+
+if args.command == "download":
+    from bind_transformer.metric import download_metrics
+
+    download_metrics()
+    exit(0)
+
+from datasets import load_dataset
+
+
+from bind_transformer.load_data import (
+    protein_tokenizer,
+    second_tokenizer,
+    train_validation_test_split,
+)
 
 
 logger.info("loading data")
@@ -33,12 +40,15 @@ ds_protein = load_dataset(
 proteins = [protein_tokenizer(protein) for protein in ds_protein["protein"]]
 seconds = [second_tokenizer(second) for second in ds_protein["second"]]
 
-ds = load_dataset(
-    "csv", data_dir=args.data_dir / "DNA_data", column_names=["index", "DNA", "bind"]
-)
-ds = train_validation_test_split(ds, args.validation_ratio, args.test_ratio, args.seed)
-
 if args.command == "train":
+    ds = load_dataset(
+        "csv",
+        data_dir=args.data_dir / "DNA_data",
+        column_names=["index", "DNA", "bind"],
+    )
+    ds = train_validation_test_split(
+        ds, args.validation_ratio, args.test_ratio, args.seed
+    )
     from bind_transformer.train import train
 
     train(
@@ -74,4 +84,56 @@ if args.command == "train":
         args.layer_norm_eps,
         args.rotary_value,
         args.pos_weight,
+    )
+
+elif args.command == "test":
+    ds = load_dataset(
+        "csv",
+        data_dir=args.data_dir / "DNA_data",
+        column_names=["index", "DNA", "bind"],
+    )
+    ds = train_validation_test_split(
+        ds, args.validation_ratio, args.test_ratio, args.seed
+    )
+    from bind_transformer.test import test
+
+    results = test(
+        ds,
+        proteins,
+        seconds,
+        args.train_output_dir,
+        args.pipeline_output_dir,
+        args.device,
+        args.batch_size,
+        logger,
+    )
+
+    print(results)
+
+elif args.command == "inference":
+    ds = load_dataset(
+        "csv",
+        data_dir=args.inference_data_dir / "DNA_data",
+        column_names=["index", "DNA", "bind"],
+    )
+    from bind_transformer.inference import inference
+
+    for output in inference(
+        ds,
+        proteins,
+        seconds,
+        args.pipeline_output_dir,
+        args.device,
+        args.batch_size,
+        logger,
+    ):
+        pass
+
+elif args.command == "app":
+    from bind_transformer.app import app
+
+    app(
+        args.pipeline_output_dir,
+        args.device,
+        logger,
     )

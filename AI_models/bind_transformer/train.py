@@ -1,11 +1,14 @@
+import scipy.special
 from transformers import Trainer, TrainingArguments
 from datasets import Dataset
 from pathlib import Path
 from logging import Logger
 from typing import List
 from torch import Tensor
+import scipy
 from .model import BindTransformerConfig, BindTransformerModel
 from .load_data import data_collector, outputs_train
+from .metric import compute_metrics
 
 
 def train(
@@ -94,6 +97,7 @@ def train(
         remove_unused_columns=False,
         label_names=BindTransformerConfig.label_names,
         use_cpu=True if device == "cpu" else False,
+        eval_accumulation_steps=1,  # 省点GPU
     )
     training_args.set_dataloader(
         train_batch_size=batch_size, eval_batch_size=batch_size
@@ -102,6 +106,7 @@ def train(
     training_args.set_lr_scheduler(
         name=scheduler, num_epochs=num_epochs, warmup_ratio=warmup_ratio
     )
+
     trainer = Trainer(
         model=bind_transformer_model,
         args=training_args,
@@ -109,6 +114,9 @@ def train(
         eval_dataset=ds["validation"],
         data_collator=lambda examples: data_collector(
             examples, proteins, seconds, outputs_train
+        ),
+        compute_metrics=lambda eval_prediction: compute_metrics(
+            eval_prediction.predictions, eval_prediction.label_ids
         ),
     )
 

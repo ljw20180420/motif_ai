@@ -24,7 +24,7 @@ def get_config(config_files):
         "--command",
         type=str,
         required=True,
-        choices=["train", "test", "inference", "app"],
+        choices=["download", "train", "test", "inference", "app"],
         help="What to do.",
     )
 
@@ -36,7 +36,7 @@ def get_config(config_files):
         "--data_dir",
         type=pathlib.Path,
         required=True,
-        help="Input directory contains csv files with header protein,secondary_structure,DNA,bind",
+        help="Input directory contains csv files with header protein,secondary_structure,DNA,bind. Used for train and test.",
     )
     parser_common.add_argument(
         "--train_output_dir",
@@ -63,6 +63,12 @@ def get_config(config_files):
         required=True,
         choices=["CRITICAL", "FATAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"],
         help="Set logging level.",
+    )
+    parser_common.add_argument(
+        "--inference_data_dir",
+        type=pathlib.Path,
+        required=True,
+        help="Input directory contains csv files with header protein,secondary_structure,DNA,bind. Used for inference.",
     )
 
     # dataset parameters

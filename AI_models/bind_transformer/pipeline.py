@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from diffusers import DiffusionPipeline
 
 
@@ -10,6 +11,9 @@ class BindTransformerPipeline(DiffusionPipeline):
 
     @torch.no_grad()
     def __call__(self, batch):
-        return self.bind_transformer_model(
-            batch["DNAprotein"].to(self.bind_transformer_model.device)
+        logits = self.bind_transformer_model(
+            batch["protein_ids"].to(self.bind_transformer_model.device),
+            batch["second_ids"].to(self.bind_transformer_model.device),
+            batch["DNA_ids"].to(self.bind_transformer_model.device),
         )["logit"]
+        return F.softmax(logits, dim=-1)[:, -1]
