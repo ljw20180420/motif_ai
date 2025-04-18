@@ -16,6 +16,15 @@ DNA_tokenmap[torch.frombuffer("XZACGT".encode(), dtype=torch.int8).to(torch.int6
 )
 
 
+def extract_DNA_of_certain_length(DNA, DNA_length, zinc_num):
+    if DNA_length == 0:
+        DNA_length = 10 + 3 * zinc_num
+    if len(DNA) < DNA_length:
+        return DNA
+    start = (len(DNA) - DNA_length) // 2
+    return DNA[start : start + DNA_length]
+
+
 def DNA_tokenizer(DNA):
     """
     DNA: XZACGT->012345。 X是mask token。Z是[CLS]token。ACGT是碱基token。
@@ -56,7 +65,7 @@ def second_tokenizer(second):
 
 
 @torch.no_grad()
-def data_collector(examples, proteins, seconds, outputs):
+def data_collector(examples, DNA_length, proteins, seconds, zinc_nums, outputs):
     results = dict()
     if "protein" in outputs:
         results["protein_ids"] = pad_sequence(
@@ -72,7 +81,15 @@ def data_collector(examples, proteins, seconds, outputs):
         )
     if "DNA" in outputs:
         results["DNA_ids"] = pad_sequence(
-            [DNA_tokenizer("Z" + example["DNA"]) for example in examples],
+            [
+                DNA_tokenizer(
+                    "Z"
+                    + extract_DNA_of_certain_length(
+                        example["DNA"], DNA_length, zinc_nums[example["index"]]
+                    )
+                )
+                for example in examples
+            ],
             batch_first=True,
             padding_value=0,
         )

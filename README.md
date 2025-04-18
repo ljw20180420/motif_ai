@@ -1,6 +1,23 @@
 TODO
 ```list
+latent attention
+multi-scale attention
+logit和概率的AUC可能不一样
+模型可解释性需要研究一下prot-bert的global attention
+baseline需要加上24年的briefings bioinformatics和李天杰说的review
 Use better negative data than random shuffle. Maybe filter by motif?
+Model interpretability.
+Baseline model.
+Use proteinBERT.
+Auto fine-tuning.
+Add comment.
+Write paper.
+```
+
+### 运行流程
+```bash
+preprocess/run.sh
+AI_models/run_DeepZF.sh
 ```
 
 ### Install

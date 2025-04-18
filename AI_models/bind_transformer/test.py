@@ -21,10 +21,12 @@ def test(
     ds: Dataset,
     proteins: List[Tensor],
     seconds: List[Tensor],
+    zinc_nums: List[int],
     train_output_dir: Path,
     pipeline_output_dir: Path,
     device: str,
     batch_size: int,
+    DNA_length: int,
     logger: Logger,
 ):
     logger.info("load model")
@@ -41,7 +43,7 @@ def test(
         dataset=ds["test"],
         batch_size=batch_size,
         collate_fn=lambda examples: data_collector(
-            examples, proteins, seconds, outputs_test
+            examples, DNA_length, proteins, seconds, zinc_nums, outputs_test
         ),
     )
 

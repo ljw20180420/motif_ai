@@ -15,11 +15,13 @@ def train(
     ds: Dataset,
     proteins: List[Tensor],
     seconds: List[Tensor],
+    zinc_nums: List[int],
     train_output_dir: Path,
     seed: int,
     device: str,
     logger: Logger,
     batch_size: int,
+    DNA_length: int,
     optimizer: str,
     learning_rate: float,
     scheduler: str,
@@ -113,7 +115,7 @@ def train(
         train_dataset=ds["train"],
         eval_dataset=ds["validation"],
         data_collator=lambda examples: data_collector(
-            examples, proteins, seconds, outputs_train
+            examples, DNA_length, proteins, seconds, zinc_nums, outputs_train
         ),
         compute_metrics=lambda eval_prediction: compute_metrics(
             eval_prediction.predictions, eval_prediction.label_ids

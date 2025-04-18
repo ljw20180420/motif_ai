@@ -92,6 +92,12 @@ def get_config(config_files):
     parser_data_loader.add_argument(
         "--batch_size", type=int, required=True, help="Batch size."
     )
+    parser_data_loader.add_argument(
+        "--DNA_length",
+        type=int,
+        default=0,
+        help="DNA of this length will be extracted from the input if possible. If not give (i.e. 0), will determined the length by the number of zinc finger of the protein.",
+    )
 
     # optimizer parameters
     parser_optimizer = parser.add_argument_group(

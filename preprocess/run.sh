@@ -96,18 +96,11 @@ done
 #         > $DATA_DIR/filtered/$accession.filtered.narrowPeak
 # done
 
-# # 根据蛋白的锌指数量调整peak大小
+# # 调整peak大小
 # mkdir -p $DATA_DIR/sized
+# seq_len=256
 # for accession in "${accessions[@]}"
 # do
-#     # 得到每个蛋白的锌指数量
-#     zinc_num=$(
-#         grep -F "$accession" \
-#             < uniprot_mouse_C2H2_protein.tsv |
-#             sed -r 's/^.+note="C2H2-type ([0-9]+)".+$/\1/' |
-#             sed -r '/^[^1-9]/s/^.+$/1/'
-#     )
-#     seq_len=$((10 + zinc_num * 3))
 #     bedClip \
 #         <(
 #             awk -v seq_len=$seq_len '
@@ -135,7 +128,7 @@ do
         --update-faidx \
         --line-width 0 \
         --bed $DATA_DIR/sized/$accession.sized.narrowPeak |
-    sed '2~2y/acgt/ACGT/' |
+    sed '2~2y/acgtn/ACGTN/' |
     sed -nr 'N;s/\n/\t/;p' |
     grep -vE "\sN|[ACGT]N" |
     sed -r 's/\t/\n/'\
@@ -156,33 +149,56 @@ do
         $DATA_DIR/negative/$accession.negative
 done
 
-# 生成训练数据集
-mkdir -p $DATA_DIR/train_data/DNA_data
-> $DATA_DIR/train_data/protein_data.csv
+# 生成训练数据集的蛋白
+mkdir -p $DATA_DIR/train_data
+>$DATA_DIR/train_data/protein_data.csv
 for ((i=0;i<${#accessions[@]};++i))
 do
     grep -F "${accessions[$i]}" \
         protein.tsv |
     cut -f1,4,5 |
-    tr '\t' ',' \
+    tr '\n\t' ',' \
         >> $DATA_DIR/train_data/protein_data.csv
+
+    # 得到每个蛋白的锌指数量
+    zinc_num=$(
+        grep -F "${accessions[$i]}" \
+            < uniprot_mouse_C2H2_protein.tsv |
+            sed -r 's/^.+note="C2H2-type ([0-9]+)".+$/\1/' |
+            sed -r '/^[^1-9]/s/^.+$/1/'
+    )
+    printf "%d\n" $zinc_num >> $DATA_DIR/train_data/protein_data.csv
+done
+
+# 生成训练数据集的DNA
+mkdir -p $DATA_DIR/train_data/DNA_data
+for ((i=0;i<${#accessions[@]};++i))
+do
     (
         sed -nr '2~2{s/$/,1.0/;p}' \
             "$DATA_DIR/positive/${accessions[$i]}.positive"
         sed -nr '2~2{s/$/,0.0/;p}' \
             "$DATA_DIR/negative/${accessions[$i]}.negative"
-    )
+    ) |
     sed -r "s/^/$i,/" \
         > "$DATA_DIR/train_data/DNA_data/${accessions[$i]}.csv"
 done
 
 # 生成小训练数据集
+get_seeded_random()
+{
+    seed="$1"
+    openssl enc -aes-256-ctr -pass pass:"$seed" -nosalt \
+    </dev/zero 2>/dev/null
+}
+
 mkdir -p $DATA_DIR/small_train_data/DNA_data
 cp $DATA_DIR/train_data/protein_data.csv $DATA_DIR/small_train_data/protein_data.csv
 small_line_num=3000
 for accession in "${accessions[@]}"
 do
-    shuf \
-        -n $small_line_num $DATA_DIR/train_data/DNA_data/${accession}.csv \
+    shuf -n $small_line_num \
+        --random-source=<(get_seeded_random 63036) \
+        $DATA_DIR/train_data/DNA_data/${accession}.csv \
         > $DATA_DIR/small_train_data/DNA_data/${accession}.csv
 done

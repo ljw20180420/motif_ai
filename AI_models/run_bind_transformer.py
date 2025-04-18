@@ -35,10 +35,11 @@ logger.info("loading data")
 ds_protein = load_dataset(
     "csv",
     data_files=(args.data_dir / "protein_data.csv").as_posix(),
-    column_names=["accession", "protein", "second"],
+    column_names=["accession", "protein", "second", "zinc_num"],
 )["train"]
 proteins = [protein_tokenizer(protein) for protein in ds_protein["protein"]]
 seconds = [second_tokenizer(second) for second in ds_protein["second"]]
+zinc_nums = [zinc_num for zinc_num in ds_protein["zinc_num"]]
 
 if args.command == "train":
     ds = load_dataset(
@@ -55,11 +56,13 @@ if args.command == "train":
         ds,
         proteins,
         seconds,
+        zinc_nums,
         args.train_output_dir,
         args.seed,
         args.device,
         logger,
         args.batch_size,
+        args.DNA_length,
         args.optimizer,
         args.learning_rate,
         args.scheduler,
@@ -101,10 +104,12 @@ elif args.command == "test":
         ds,
         proteins,
         seconds,
+        zinc_nums,
         args.train_output_dir,
         args.pipeline_output_dir,
         args.device,
         args.batch_size,
+        args.DNA_length,
         logger,
     )
 
@@ -122,9 +127,11 @@ elif args.command == "inference":
         ds,
         proteins,
         seconds,
+        zinc_nums,
         args.pipeline_output_dir,
         args.device,
         args.batch_size,
+        args.DNA_length,
         logger,
     ):
         pass

@@ -28,3 +28,6 @@ preprocess/know_motif/factorbook/complete-factorbook-catalog.meme.corrected
 preprocess/know_motif/factorbook/factorbook_chipseq_meme_motifs.tsv
 AI_models/bind_transformer/checkpoints
 AI_models/bind_transformer/pipeline
+AI_models/DeepZF/Data
+AI_models/DeepZF/BindZF_predictor/code/model.p
+AI_models/DeepZF/Results
