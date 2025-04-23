@@ -1,104 +1,42 @@
 import torch
-from torch.nn.utils.rnn import pad_sequence
-from .model import BindTransformerConfig
-
-outputs_inference = [
-    "protein",
-    "second",
-    "DNA",
-]
-outputs_train = outputs_inference + BindTransformerConfig.label_names
-outputs_test = outputs_train
-
-DNA_tokenmap = torch.zeros(91, dtype=torch.int64)
-DNA_tokenmap[torch.frombuffer("XZACGT".encode(), dtype=torch.int8).to(torch.int64)] = (
-    torch.arange(6)
-)
-
-
-def extract_DNA_of_certain_length(DNA, DNA_length, zinc_num):
-    if DNA_length == 0:
-        DNA_length = 10 + 3 * zinc_num
-    if len(DNA) < DNA_length:
-        return DNA
-    start = (len(DNA) - DNA_length) // 2
-    return DNA[start : start + DNA_length]
-
-
-def DNA_tokenizer(DNA):
-    """
-    DNA: XZACGT->012345。 X是mask token。Z是[CLS]token。ACGT是碱基token。
-    """
-    return DNA_tokenmap[
-        torch.frombuffer(DNA.encode(), dtype=torch.int8).to(torch.int64)
-    ]
-
-
-protein_tokenmap = torch.zeros(90, dtype=torch.int64)
-protein_tokenmap[
-    torch.frombuffer("XACDEFGHIKLMNPQRSTVWY".encode(), dtype=torch.int8).to(torch.int64)
-] = torch.arange(21)
-
-
-def protein_tokenizer(protein):
-    """
-    protein: XACDEFGHIKLMNPQRSTVWY->0-20。X是mask token。ACDEFGHIKLMNPQRSTVWY是氨基酸。
-    """
-    return protein_tokenmap[
-        torch.frombuffer(protein.encode(), dtype=torch.int8).to(torch.int64)
-    ]
-
-
-second_tokenmap = torch.zeros(91, dtype=torch.int64)
-second_tokenmap[
-    torch.frombuffer("XHBEGIPTS-KZ".encode(), dtype=torch.int8).to(torch.int64)
-] = torch.arange(12)
-
-
-def second_tokenizer(second):
-    """
-    second: XHBEGIPTS-KZ->0-11。X是mask token。HBEGIPTS-是二级结构。K是KRAB。Z是锌指。
-    """
-    return second_tokenmap[
-        torch.frombuffer(second.encode(), dtype=torch.int8).to(torch.int64)
-    ]
 
 
 @torch.no_grad()
-def data_collector(examples, DNA_length, proteins, seconds, zinc_nums, outputs):
-    results = dict()
-    if "protein" in outputs:
-        results["protein_ids"] = pad_sequence(
-            [proteins[example["index"]] for example in examples],
-            batch_first=True,
-            padding_value=0,
+def data_collector(
+    examples,
+    proteins,
+    seconds,
+    zinc_nums,
+    DNA_tokenizer,
+    protein_tokenizer,
+    second_tokenizer,
+    fp,
+):
+    results = {}
+    if protein_tokenizer:
+        results["protein_ids"] = protein_tokenizer(
+            [proteins[example["index"]] for example in examples]
         )
-    if "second" in outputs:
-        results["second_ids"] = pad_sequence(
+    if second_tokenizer:
+        results["second_ids"] = second_tokenizer(
             [seconds[example["index"]] for example in examples],
-            batch_first=True,
-            padding_value=0,
         )
-    if "DNA" in outputs:
-        results["DNA_ids"] = pad_sequence(
-            [
-                DNA_tokenizer(
-                    "Z"
-                    + extract_DNA_of_certain_length(
-                        example["DNA"], DNA_length, zinc_nums[example["index"]]
-                    )
-                )
-                for example in examples
-            ],
-            batch_first=True,
-            padding_value=0,
+    if DNA_tokenizer:
+        results["DNA_ids"] = DNA_tokenizer(
+            [example["DNA"] for example in examples],
+            [zinc_nums[example["index"]] for example in examples],
         )
 
-    for label_name in BindTransformerConfig.label_names:
-        if label_name in outputs:
-            results[label_name] = torch.tensor(
-                [example[label_name] for example in examples], dtype=torch.int64
-            )
+    dtype = {"fp16": torch.float16, "fp32": torch.float32, "fp64": torch.float64}[fp]
+
+    for key in examples[0].keys():
+        if key is "DNA" or key is "index":
+            continue
+
+        results[key] = torch.tensor(
+            [example[key] for example in examples],
+            dtype=dtype,
+        )
 
     return results
 

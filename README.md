@@ -1,9 +1,9 @@
 TODO
 ```list
+remove duplicate DNA sequences
 latent attention
 multi-scale attention
 logit和概率的AUC可能不一样
-模型可解释性需要研究一下prot-bert的global attention
 baseline需要加上24年的briefings bioinformatics和李天杰说的review
 Use better negative data than random shuffle. Maybe filter by motif?
 Model interpretability.

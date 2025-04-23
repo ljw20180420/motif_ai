@@ -70,6 +70,13 @@ def get_config(config_files):
         required=True,
         help="Input directory contains csv files with header protein,secondary_structure,DNA,bind. Used for inference.",
     )
+    parser_common.add_argument(
+        "--fp",
+        type=str,
+        required=True,
+        choices=["fp16", "fp32", "fp64"],
+        help="Float precision.",
+    )
 
     # dataset parameters
     parser_dataset = parser.add_argument_group(
@@ -161,55 +168,46 @@ def get_config(config_files):
         title="roformer", description="Parameters for roformer."
     )
     parser_roformer.add_argument(
-        "--protein_animo_acids_vocab_size",
+        "--protein_vocab",
         type=int,
         required=True,
         help="The vocabulary size of protein animo acids. 20 animo acids and 1 mask token, totally 21.",
     )
     parser_roformer.add_argument(
-        "--protein_secondary_structure_vocab_size",
+        "--second_vocab",
         type=int,
         required=True,
         help="The vocabulary size of protein secondary structure. 11 secondary structrue and 1 mask token, totally 12.",
     )
     parser_roformer.add_argument(
-        "--protein_coarse_grained_size",
-        type=int,
-        required=True,
-        help="The coarse-grained bin size of protein.",
-    )
-    parser_roformer.add_argument(
-        "--protein_max_position_embeddings",
-        type=int,
-        required=True,
-        help="The maximum sequence length of protein. Typically set this to something large just in case (e.g., 512 or 1024 or 1536).",
-    )
-    parser_roformer.add_argument(
-        "--DNA_vocab_size",
+        "--DNA_vocab",
         type=int,
         required=True,
         help="The vocabulary size of DNA. 4 nucletides and 1 mask token and 1 [CLS] token, totally 6.",
     )
     parser_roformer.add_argument(
-        "--DNA_max_position_embeddings",
+        "--max_length",
         type=int,
         required=True,
-        help="The maximum sequence length of DNA. Typically set this to something large just in case (e.g., 512 or 1024 or 1536).",
+        help="The maximum length of rotatory position embedding.",
     )
     parser_roformer.add_argument(
-        "--embedding_size", type=int, required=True, help="Model embedding dimension."
+        "--dim_emb", type=int, required=True, help="Model embedding dimension."
     )
     parser_roformer.add_argument(
-        "--hidden_size", type=int, required=True, help="Model hiddent dimension."
+        "--dim_heads",
+        type=int,
+        required=True,
+        help="Dimension of attention heads.",
     )
     parser_roformer.add_argument(
-        "--num_attention_heads",
+        "--num_heads",
         type=int,
         required=True,
         help="Number of attention heads.",
     )
     parser_roformer.add_argument(
-        "--num_hidden_layers", type=int, required=True, help="Number of EncoderLayer."
+        "--depth", type=int, required=True, help="Number of EncoderLayer."
     )
     parser_roformer.add_argument(
         "--chunk_size_feed_forward",
@@ -218,29 +216,16 @@ def get_config(config_files):
         help="The chunk size of all feed forward layers in the residual attention blocks. A chunk size of 0 means that the feed forward layer is not chunked.",
     )
     parser_roformer.add_argument(
-        "--intermediate_size",
+        "--dim_ffn",
         type=int,
         required=True,
         help="FeedForward intermediate dimension size.",
     )
     parser_roformer.add_argument(
-        "--hidden_act",
-        type=str,
-        required=True,
-        choices=["gelu", "relu", "selu", "gelu_new"],
-        help="The non-linear activation function in the encoder and pooler.",
-    )
-    parser_roformer.add_argument(
-        "--hidden_dropout_prob",
+        "--dropout",
         type=float,
         required=True,
-        help="The dropout probability for all fully connected layers in the embeddings, encoder, and pooler.",
-    )
-    parser_roformer.add_argument(
-        "--attention_probs_dropout_prob",
-        type=float,
-        required=True,
-        help="The dropout ratio for the attention probabilities.",
+        help="The dropout probability.",
     )
     parser_roformer.add_argument(
         "--initializer_range",
@@ -249,10 +234,10 @@ def get_config(config_files):
         help="The standard deviation of the truncated_normal_initializer for initializing all weight matrices.",
     )
     parser_roformer.add_argument(
-        "--layer_norm_eps",
+        "--norm_eps",
         type=float,
         required=True,
-        help="The epsilon used by the layer normalization layers.",
+        help="The epsilon used by the normalization layers.",
     )
     parser_roformer.add_argument(
         "--rotary_value",

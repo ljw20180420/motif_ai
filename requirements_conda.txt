@@ -9,6 +9,7 @@ conda-forge::transformers
 conda-forge::accelerate
 conda-forge::evaluate
 conda-forge::gradio
+conda-forge::einops
 bioconda::entrez-direct
 conda-forge::ncbi-datasets-cli
 bioconda::igv
