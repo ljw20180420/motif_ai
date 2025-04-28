@@ -24,23 +24,31 @@ def download_metrics():
 
 
 def compute_metrics_probabilities(bind_probabilities: np.ndarray, binds: np.ndarray):
-    bind_predictions = bind_probabilities >= 0.5
+    F1_metric = evaluate.load("bind_transformer/metrics/f1.py")
+    best_F1_result = {"f1": -1}
+    for thres in np.linspace(0.05, 0.95, 19):
+        bind_predictions = bind_probabilities >= thres
+        F1_result = F1_metric.compute(predictions=bind_predictions, references=binds)
+        if F1_result["f1"] > best_F1_result["f1"]:
+            best_F1_result = F1_result
+            best_thres = thres
 
     hard_class_metrics = evaluate.combine(
         [
             "bind_transformer/metrics/accuracy.py",
             "bind_transformer/metrics/recall.py",
             "bind_transformer/metrics/precision.py",
-            "bind_transformer/metrics/f1.py",
             "bind_transformer/metrics/matthews_correlation.py",
             "bind_transformer/metrics/confusion_matrix.py",
         ]
     )
+    bind_predictions = bind_probabilities >= best_thres
     hard_results = hard_class_metrics.compute(
         predictions=bind_predictions, references=binds
     )
     confusion_matrix = hard_results.pop("confusion_matrix")
     hard_results = {
+        **best_F1_result,
         **hard_results,
         "true_negative": confusion_matrix[0, 0],
         "false_positive": confusion_matrix[0, 1],

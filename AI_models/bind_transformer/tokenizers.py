@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from typing import List
+from einops import pack
 
 
 class DNA_Tokenizer:
@@ -14,39 +15,40 @@ class DNA_Tokenizer:
     如果DNA_length <= 0, 使用10 + 3 * zinc_num作为DNA_length
     """
 
-    def __init__(self, DNA_length: int) -> None:
-        self.DNA_length = DNA_length
+    def __init__(self, dna_length: int) -> None:
+        self.dna_length = dna_length
 
-        self.DNA_tokenmap = torch.zeros(110, dtype=torch.int64)
-        self.DNA_tokenmap[
+        self.dna_tokenmap = torch.zeros(110, dtype=torch.int64)
+        self.dna_tokenmap[
             np.frombuffer("mcACGTN".encode(), dtype=np.int8).astype(np.int64)
         ] = torch.arange(7)
 
-    def __call__(self, DNAs: List[str], zinc_nums: List[int]) -> torch.Tensor:
-        extracted_DNAs, max_length = [], 0
-        for DNA, zinc_num in zip(DNAs, zinc_nums):
-            DNA_length = self.DNA_length if self.DNA_length > 0 else 10 + 3 * zinc_num
-            if len(DNA) < DNA_length:
+    def __call__(self, dnas: List[str], zinc_nums: List[int]) -> torch.Tensor:
+        extracted_dnas, max_length = [], 0
+        for dna, zinc_num in zip(dnas, zinc_nums):
+            dna_length = self.dna_length if self.dna_length > 0 else 10 + 3 * zinc_num
+            if len(dna) < dna_length:
                 raise ValueError("DNA太短")
-            start = (len(DNA) - DNA_length) // 2
-            extracted_DNA = "c" + DNA[start : start + DNA_length]
+            start = (len(dna) - dna_length) // 2
+            extracted_dna = "c" + dna[start : start + dna_length]
             max_length = (
-                max_length if max_length >= len(extracted_DNA) else len(extracted_DNA)
+                max_length if max_length >= len(extracted_dna) else len(extracted_dna)
             )
-            extracted_DNAs.append(extracted_DNA)
+            extracted_dnas.append(extracted_dna)
 
-        return torch.stack(
+        return pack(
             [
-                self.DNA_tokenmap[
+                self.dna_tokenmap[
                     np.frombuffer(
                         (
-                            extracted_DNA + "m" * (max_length - len(extracted_DNA))
+                            extracted_dna + "m" * (max_length - len(extracted_dna))
                         ).encode(),
                         dtype=np.int8,
                     ).astype(np.int64)
                 ]
-                for extracted_DNA in extracted_DNAs
-            ]
+                for extracted_dna in extracted_dnas
+            ],
+            "* n",
         )
 
 
@@ -67,7 +69,7 @@ class Second_Tokenizer:
 
     def __call__(self, seconds: List[str]) -> torch.Tensor:
         max_length = max([len(second) for second in seconds])
-        return torch.stack(
+        return pack(
             [
                 self.second_tokenmap[
                     np.frombuffer(
@@ -76,7 +78,8 @@ class Second_Tokenizer:
                     ).astype(np.int64)
                 ]
                 for second in seconds
-            ]
+            ],
+            "* n",
         )
 
 
@@ -97,7 +100,7 @@ class Protein_Tokenizer:
 
     def __call__(self, proteins: List[str]) -> torch.Tensor:
         max_length = max([len(protein) for protein in proteins])
-        return torch.stack(
+        return pack(
             [
                 self.protein_tokenmap[
                     np.frombuffer(
@@ -106,7 +109,8 @@ class Protein_Tokenizer:
                     ).astype(np.int64)
                 ]
                 for protein in proteins
-            ]
+            ],
+            "* n",
         )
 
 
@@ -133,7 +137,7 @@ class Protein_Bert_Tokenizer:
         ] = torch.arange(26)
 
     def __call__(self, proteins: List[str]) -> torch.Tensor:
-        return torch.stack(
+        return pack(
             [
                 self.protein_tokenmap[
                     np.frombuffer(
@@ -144,5 +148,6 @@ class Protein_Bert_Tokenizer:
                     ).astype(np.int64)
                 ]
                 for protein in proteins
-            ]
+            ],
+            "* n",
         )

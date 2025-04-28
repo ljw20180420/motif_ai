@@ -1,9 +1,11 @@
 import torch
 import pickle
-from torch import nn, einsum
+from torch import nn
 
-from einops.layers.torch import Rearrange
-from einops import rearrange
+# torch does not import opt_einsum as backend by default. import opt_einsum manually will enable it.
+from torch.backends import opt_einsum
+from einops.layers.torch import Rearrange, EinMix
+from einops import rearrange, repeat, einsum
 
 from .common import Residual
 
@@ -12,21 +14,31 @@ class CrossAttention(nn.Module):
     def __init__(self, dim, dim_global, heads, dim_head):
         super().__init__()
         self.scale = dim_head**-0.5
+        self.dim_global = dim_global
+        self.heads = heads
 
         self.to_q = nn.Sequential(
-            nn.Linear(dim_global, dim_head * heads, bias=False),
+            EinMix(
+                "b d_g -> b nhd",
+                weight_shape="d_g nhd",
+                d_g=dim_global,
+                nhd=heads * dim_head,
+            ),
             nn.Tanh(),
-            Rearrange("b n (h d) -> b h n d", h=heads),
         )
         self.to_k = nn.Sequential(
-            nn.Linear(dim, dim_head * heads, bias=False),
+            EinMix(
+                "b s d -> b s nhd",
+                weight_shape="d nhd",
+                d=dim,
+                nhd=heads * dim_head,
+            ),
             nn.Tanh(),
-            Rearrange("b n (h d) -> b h n d", h=heads),
         )
         self.to_v = nn.Sequential(
-            nn.Linear(dim, dim_global, bias=False),
+            EinMix("b s d -> b s d_g", weight_shape="d d_g", d=dim, d_g=dim_global),
             nn.GELU(),
-            Rearrange("b n (h d) -> b h n d", h=heads),
+            Rearrange("b s (h d) -> b s h d", h=heads, d=dim_global // heads),
         )
 
     def forward(self, x, context):
@@ -34,11 +46,10 @@ class CrossAttention(nn.Module):
         k = self.to_k(context)
         v = self.to_v(context)
 
-        sim = einsum("b h i d, b h j d -> b h i j", q, k) * self.scale
-
-        attn = sim.softmax(dim=-1)
-        out = einsum("b h i j, b h j d -> b h i d", attn, v)
-        out = rearrange(out, "b h n d -> b n (h d)")
+        sim = einsum(q, k, "b (h d_h), b s (h d_h) -> b s h") * self.scale
+        attn = sim.softmax(dim=1)
+        out = einsum(attn, v, "b s h, b s h d -> b h d")
+        out = rearrange(out, "b h d -> b (h d)", h=self.heads)
         return out
 
 
@@ -56,14 +67,14 @@ class Layer(nn.Module):
         super().__init__()
 
         self.narrow_conv = nn.Sequential(
-            Rearrange("b n d -> b d n"),
+            Rearrange("b s d -> b d s", d=dim),
             nn.Conv1d(
                 dim,
                 dim,
                 narrow_conv_kernel,
                 padding=narrow_conv_kernel // 2,
             ),
-            Rearrange("b d n -> b n d"),
+            Rearrange("b d s -> b s d", d=dim),
             nn.GELU(),
         )
 
@@ -72,7 +83,7 @@ class Layer(nn.Module):
         ) // 2
 
         self.wide_conv = nn.Sequential(
-            Rearrange("b n d -> b d n"),
+            Rearrange("b s d -> b d s", d=dim),
             nn.Conv1d(
                 dim,
                 dim,
@@ -80,21 +91,33 @@ class Layer(nn.Module):
                 dilation=wide_conv_dilation,
                 padding=wide_conv_padding,
             ),
-            Rearrange("b n d -> b d n"),
+            Rearrange("b d s -> b s d", d=dim),
             nn.GELU(),
         )
 
         self.extract_global_info = nn.Sequential(
-            nn.Linear(dim_global, dim),
+            EinMix(
+                "b d_g -> b d",
+                weight_shape="d_g d",
+                bias_shape="d",
+                d_g=dim_global,
+                d=dim,
+            ),
             nn.GELU(),
+            Rearrange("b d -> b () d", d=dim),
         )
 
-        self.local_norm = nn.LayerNorm(dim, eps=1e-3)
-
         self.local_feedforward = nn.Sequential(
+            nn.LayerNorm(dim, eps=1e-3),
             Residual(
                 nn.Sequential(
-                    nn.Linear(dim, dim),
+                    EinMix(
+                        "b s d -> b s d0",
+                        weight_shape="d d0",
+                        bias_shape="d0",
+                        d=dim,
+                        d0=dim,
+                    ),
                     nn.GELU(),
                 )
             ),
@@ -108,25 +131,41 @@ class Layer(nn.Module):
             dim_head=attn_dim_head,
         )
 
-        self.global_dense = nn.Sequential(nn.Linear(dim_global, dim_global), nn.GELU())
-
-        self.global_norm = nn.LayerNorm(dim_global, eps=1e-3)
+        self.global_dense = nn.Sequential(
+            EinMix(
+                "b d_g -> b d_g0",
+                weight_shape="d_g d_g0",
+                bias_shape="d_g0",
+                d_g=dim_global,
+                d_g0=dim_global,
+            ),
+            nn.GELU(),
+        )
 
         self.global_feedforward = nn.Sequential(
-            Residual(nn.Sequential(nn.Linear(dim_global, dim_global), nn.GELU())),
+            nn.LayerNorm(dim_global, eps=1e-3),
+            Residual(
+                nn.Sequential(
+                    EinMix(
+                        "b d_g -> b d_g0",
+                        weight_shape="d_g d_g0",
+                        bias_shape="d_g0",
+                        d_g=dim_global,
+                        d_g0=dim_global,
+                    ),
+                    nn.GELU(),
+                )
+            ),
             nn.LayerNorm(dim_global, eps=1e-3),
         )
 
     def forward(self, tokens, annotation):
-        global_info = self.extract_global_info(annotation)
-
         # process local (protein sequence)
-
         narrow_out = self.narrow_conv(tokens)
         wide_out = self.wide_conv(tokens)
+        global_info = self.extract_global_info(annotation)
 
         tokens = tokens + narrow_out + wide_out + global_info
-        tokens = self.local_norm(tokens)
         tokens = self.local_feedforward(tokens)
         # process global (annotations)
 
@@ -135,7 +174,6 @@ class Layer(nn.Module):
             + self.global_dense(annotation)
             + self.global_attend_local(annotation, tokens)
         )
-        annotation = self.global_norm(annotation)
         annotation = self.global_feedforward(annotation)
 
         return tokens, annotation
@@ -160,11 +198,12 @@ class ProteinBERT(nn.Module):
     ):
         super().__init__()
         self.num_tokens = num_tokens
+        self.dim_global = dim_global
         self.token_emb = nn.Embedding(num_tokens, dim)
 
         self.global_bias = nn.Parameter()
 
-        self.active_global = nn.Sequential(nn.GELU(), Rearrange("b d -> b () d"))
+        self.active_global = nn.GELU()
 
         self.layers = nn.ModuleList(
             [
@@ -177,7 +216,7 @@ class ProteinBERT(nn.Module):
                     attn_heads=attn_heads,
                     attn_dim_head=attn_dim_head,
                 )
-                for layer in range(depth)
+                for _ in range(depth)
             ]
         )
 
@@ -186,7 +225,9 @@ class ProteinBERT(nn.Module):
     def forward(self, protein_ids):
         tokens = self.token_emb(protein_ids)
 
-        annotation = self.global_bias[None, :].expand(protein_ids.shape[0], -1)
+        annotation = repeat(
+            self.global_bias, "d -> b d", b=protein_ids.shape[0], d=self.dim_global
+        )
         annotation = self.active_global(annotation)
 
         for layer in self.layers:
@@ -221,18 +262,22 @@ class ProteinBERT(nn.Module):
                 model_weights[i * 23 + 7]
             ).permute(2, 1, 0)
             layer.wide_conv[1].bias.data = torch.from_numpy(model_weights[i * 23 + 8])
-            layer.local_norm.weight.data = torch.from_numpy(model_weights[i * 23 + 9])
-            layer.local_norm.bias.data = torch.from_numpy(model_weights[i * 23 + 10])
-            layer.local_feedforward[0].fn[0].weight.data = torch.from_numpy(
+            layer.local_feedforward[0].weight.data = torch.from_numpy(
+                model_weights[i * 23 + 9]
+            )
+            layer.local_feedforward[0].bias.data = torch.from_numpy(
+                model_weights[i * 23 + 10]
+            )
+            layer.local_feedforward[1].module[0].weight.data = torch.from_numpy(
                 model_weights[i * 23 + 11]
             ).T
-            layer.local_feedforward[0].fn[0].bias.data = torch.from_numpy(
+            layer.local_feedforward[1].module[0].bias.data = torch.from_numpy(
                 model_weights[i * 23 + 12]
             )
-            layer.local_feedforward[1].weight.data = torch.from_numpy(
+            layer.local_feedforward[2].weight.data = torch.from_numpy(
                 model_weights[i * 23 + 13]
             )
-            layer.local_feedforward[1].bias.data = torch.from_numpy(
+            layer.local_feedforward[2].bias.data = torch.from_numpy(
                 model_weights[i * 23 + 14]
             )
             layer.global_dense[0].weight.data = torch.from_numpy(
@@ -259,17 +304,21 @@ class ProteinBERT(nn.Module):
                 .reshape(128, -1)
                 .T
             )
-            layer.global_norm.weight.data = torch.from_numpy(model_weights[i * 23 + 20])
-            layer.global_norm.bias.data = torch.from_numpy(model_weights[i * 23 + 21])
-            layer.global_feedforward[0].fn[0].weight.data = torch.from_numpy(
+            layer.global_feedforward[0].weight.data = torch.from_numpy(
+                model_weights[i * 23 + 20]
+            )
+            layer.global_feedforward[0].bias.data = torch.from_numpy(
+                model_weights[i * 23 + 21]
+            )
+            layer.global_feedforward[1].module[0].weight.data = torch.from_numpy(
                 model_weights[i * 23 + 22]
             ).T
-            layer.global_feedforward[0].fn[0].bias.data = torch.from_numpy(
+            layer.global_feedforward[1].module[0].bias.data = torch.from_numpy(
                 model_weights[i * 23 + 23]
             )
-            layer.global_feedforward[1].weight.data = torch.from_numpy(
+            layer.global_feedforward[2].weight.data = torch.from_numpy(
                 model_weights[i * 23 + 24]
             )
-            layer.global_feedforward[1].bias.data = torch.from_numpy(
+            layer.global_feedforward[2].bias.data = torch.from_numpy(
                 model_weights[i * 23 + 25]
             )

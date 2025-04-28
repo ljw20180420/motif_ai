@@ -1,17 +1,15 @@
 from transformers import PretrainedConfig, PreTrainedModel
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.nn import BCEWithLogitsLoss
-from typing import Union, Tuple
-from torchtune.modules import RotaryPositionalEmbeddings, MultiHeadAttention
-from .modules import (
-    EncoderLayer,
-    DecoderLayer,
-    ClassificationHead,
-)
+from typing import Union
+
+# torch does not import opt_einsum as backend by default. import opt_einsum manually will enable it.
+from torch.backends import opt_einsum
+from einops.layers.torch import EinMix, Rearrange
 from .modules.protein_bert import ProteinBERT
-from .modules.common import Residual, Duplicate
+from .modules.encoder import Second_Encoder, DNA_Encoder
+from .modules.common import Elastic_Net
 
 
 class BindTransformerConfig(PretrainedConfig):
@@ -28,37 +26,37 @@ class BindTransformerConfig(PretrainedConfig):
         self,
         protein_vocab: int = None,
         second_vocab: int = None,
-        DNA_vocab: int = None,
+        dna_vocab: int = None,
         max_length: int = None,
         dim_emb: int = None,
-        dim_heads: int = None,
         num_heads: int = None,
+        dim_heads: int = None,
         depth: int = None,
-        chunk_size_feed_forward: int = None,
         dim_ffn: int = None,
         dropout: float = None,
-        initializer_range: float = None,
         norm_eps: float = None,
-        rotary_value: bool = None,
         pos_weight: float = None,
+        reg_l1: float = None,
+        reg_l2: float = None,
+        initializer_range: float = None,
         seed: int = None,
         **kwargs,
     ) -> None:
         self.protein_vocab = protein_vocab
         self.second_vocab = second_vocab
-        self.DNA_vocab = DNA_vocab
+        self.dna_vocab = dna_vocab
         self.max_length = max_length
         self.dim_emb = dim_emb
-        self.dim_heads = dim_heads
         self.num_heads = num_heads
+        self.dim_heads = dim_heads
         self.depth = depth
-        self.chunk_size_feed_forward = chunk_size_feed_forward
         self.dim_ffn = dim_ffn
         self.dropout = dropout
-        self.initializer_range = initializer_range
         self.norm_eps = norm_eps
-        self.rotary_value = rotary_value
         self.pos_weight = pos_weight
+        self.reg_l1 = reg_l1
+        self.reg_l2 = reg_l2
+        self.initializer_range = initializer_range
         self.seed = seed
         super().__init__(
             **kwargs,
@@ -72,163 +70,79 @@ class BindTransformerModel(PreTrainedModel):
 
     config_class = BindTransformerConfig
 
-    def __init__(self, config):
+    def __init__(self, config: BindTransformerConfig) -> None:
         """
         config: An instance of the configuration class.
         """
         super().__init__(config)
 
-        # 二级结构编码器: 蛋白质9种二级结构+锌指结构+KRAB总共11种二级结构的token编码（算上mask token有12个）
-        self.second_encode = nn.Sequential(
-            nn.Embedding(
-                config.second_vocab,
-                config.dim_emb,
-            ),
-            nn.Dropout(config.dropout),
-            Residual(
-                nn.Sequential(
-                    nn.RMSNorm(config.dim_emb, eps=config.norm_eps),
-                    Duplicate(
-                        MultiHeadAttention(
-                            embed_dim=config.dim_emb,
-                            num_heads=config.num_heads,
-                            num_kv_heads=config.num_heads,
-                            head_dim=config.dim_heads,
-                            q_proj=nn.Linear(
-                                config.dim_emb, config.num_heads * config.dim_heads
-                            ),
-                            k_proj=nn.Linear(
-                                config.dim_emb, config.num_heads * config.dim_heads
-                            ),
-                            v_proj=nn.Linear(
-                                config.dim_emb, config.num_heads * config.dim_heads
-                            ),
-                            output_proj=nn.Linear(
-                                config.num_heads * config.dim_heads, config.dim_emb
-                            ),
-                            pos_embeddings=RotaryPositionalEmbeddings(
-                                dim=config.dim_heads, max_seq_len=config.max_length
-                            ),
-                            max_seq_len=config.max_length,
-                            is_causal=False,
-                            attn_dropout=config.dropout,
-                        )
-                    ),
-                )
-            ),
-            Residual(
-                nn.Sequential(
-                    nn.RMSNorm(config.dim_emb, eps=config.norm_eps),
-                    nn.Linear(config.dim_emb, config.dim_ffn),
-                    nn.GELU(),
-                    nn.Linear(config.dim_ffn, config.dim_emb),
-                    nn.Dropout(config.dropout),
-                )
-            ),
-            nn.RMSNorm(config.dim_emb, eps=config.norm_eps),
+        # 二级结构编码器
+        self.second_encoder = Second_Encoder(
+            config.second_vocab,
+            config.max_length,
+            config.dim_emb,
+            config.dim_heads,
+            config.num_heads,
+            config.depth,
+            config.dim_ffn,
+            config.dropout,
+            config.norm_eps,
         )
 
-        # DNA4个核苷酸的token编码（算上[CLS] token和mask token有6个）
-        # 关于[CLS] token，参考BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding
-        self.DNA_self_attention = nn.Sequential(
-            nn.Embedding(
-                config.DNA_vocab,
-                config.dim_emb,
-            ),
-            nn.Dropout(config.hidden_dropout),
-            Residual(
-                nn.Sequential(
-                    nn.RMSNorm(config.dim_emb, eps=config.norm_eps),
-                    Duplicate(
-                        MultiHeadAttention(
-                            embed_dim=config.dim_emb,
-                            num_heads=config.num_heads,
-                            num_kv_heads=config.num_heads,
-                            head_dim=config.dim_heads,
-                            q_proj=nn.Linear(
-                                config.dim_emb, config.num_heads * config.dim_heads
-                            ),
-                            k_proj=nn.Linear(
-                                config.dim_emb, config.num_heads * config.dim_heads
-                            ),
-                            v_proj=nn.Linear(
-                                config.dim_emb, config.num_heads * config.dim_heads
-                            ),
-                            output_proj=nn.Linear(
-                                config.num_heads * config.dim_heads, config.dim_emb
-                            ),
-                            pos_embeddings=RotaryPositionalEmbeddings(
-                                dim=config.dim_heads, max_seq_len=config.max_length
-                            ),
-                            max_seq_len=config.max_length,
-                            is_causal=False,
-                            attn_dropout=config.dropout,
-                        )
-                    ),
-                )
-            ),
-        )
-
-        self.DNA_protein_cross_attention = MultiHeadAttention(
-            embed_dim=config.dim_emb,
-            num_heads=config.num_heads,
-            num_kv_heads=config.num_heads,
-            head_dim=config.dim_heads,
-            q_proj=nn.Linear(config.dim_emb, config.num_heads * config.dim_heads),
-            k_proj=nn.Linear(config.dim_emb, config.num_heads * config.dim_heads),
-            v_proj=nn.Linear(config.dim_emb, config.num_heads * config.dim_heads),
-            output_proj=nn.Linear(config.num_heads * config.dim_heads, config.dim_emb),
-            pos_embeddings=RotaryPositionalEmbeddings(
-                dim=config.dim_heads, max_seq_len=config.max_length
-            ),
-            max_seq_len=config.max_length,
-            is_causal=False,
-            attn_dropout=config.dropout,
-        )
-
-        self.DNA_second_cross_attention = MultiHeadAttention(
-            embed_dim=config.dim_emb,
-            num_heads=config.num_heads,
-            num_kv_heads=config.num_heads,
-            head_dim=config.dim_heads,
-            q_proj=nn.Linear(config.dim_emb, config.num_heads * config.dim_heads),
-            k_proj=nn.Linear(config.dim_emb, config.num_heads * config.dim_heads),
-            v_proj=nn.Linear(config.dim_emb, config.num_heads * config.dim_heads),
-            output_proj=nn.Linear(config.num_heads * config.dim_heads, config.dim_emb),
-            pos_embeddings=RotaryPositionalEmbeddings(
-                dim=config.dim_heads, max_seq_len=config.max_length
-            ),
-            max_seq_len=config.max_length,
-            is_causal=False,
-            attn_dropout=config.dropout,
-        )
-
-        self.DNA_ffn = nn.Sequential(
-            Residual(
-                nn.Sequential(
-                    nn.RMSNorm(config.dim_emb, eps=config.norm_eps),
-                    nn.Linear(config.dim_emb, config.dim_ffn),
-                    nn.GELU(),
-                    nn.Linear(config.dim_ffn, config.dim_emb),
-                    nn.Dropout(config.dropout),
-                )
-            )
+        # DNA编码器
+        self.dna_encoder = DNA_Encoder(
+            config.dna_vocab,
+            config.max_length,
+            config.dim_emb,
+            config.dim_heads,
+            config.num_heads,
+            config.depth,
+            config.dim_ffn,
+            config.dropout,
+            config.norm_eps,
         )
 
         # huggingface的分类头
         self.classifier = nn.Sequential(
-            nn.RMSNorm(config.dim_emb, eps=config.norm_eps),
-            nn.Linear(config.dim_emb, config.dim_emb),
+            EinMix(
+                "b d -> b d_0",
+                weight_shape="d d_0",
+                bias_shape="d_0",
+                d=config.dim_emb,
+                d_0=config.dim_emb,
+            ),
             nn.GELU(),
             nn.Dropout(config.dropout),
-            nn.Linear(config.dim_emb, 1),
-            nn.Flatten(),
+            EinMix(
+                "b d -> b o",
+                weight_shape="d o",
+                bias_shape="o",
+                d=config.dim_emb,
+                o=1,
+            ),
+            Rearrange("b 1 -> b"),
+        )
+
+        self.protein_bert_head = nn.Sequential(
+            EinMix(
+                "b s d_b -> b s d",
+                weight_shape="d_b d",
+                bias_shape="d",
+                d=config.dim_emb,
+                d_b=128,
+            ),
+            nn.Dropout(config.dropout),
+            nn.RMSNorm(config.dim_emb, eps=config.norm_eps),
         )
 
         # 交叉熵
         self.loss_fn = BCEWithLogitsLoss(
-            reduction="sum", pos_weight=torch.tensor(self.config.pos_weight)
+            reduction="sum", pos_weight=torch.tensor(config.pos_weight)
         )
+
+        # 弹性网络正则化
+        self.elastic_net = Elastic_Net(config.reg_l1, config.reg_l2)
+
         # 设置随机生成子，让训练可重复
         self.generator = torch.Generator().manual_seed(config.seed)
         # post_init
@@ -242,27 +156,22 @@ class BindTransformerModel(PreTrainedModel):
 
         # 先初始化参数, 再读取protein_bert
         # 使用protein_bert编码蛋白
-        self.protein_bert = nn.Sequential(
-            ProteinBERT(
-                num_tokens=26,
-                dim=128,
-                dim_global=512,
-                depth=6,
-                narrow_conv_kernel=9,
-                wide_conv_kernel=9,
-                wide_conv_dilation=5,
-                attn_heads=4,
-                attn_dim_head=64,
-                filename="bind_transformer/modules/epoch_92400_sample_23500000.pkl",
-            ),
-            nn.Linear(128, config.dim_emb),
-            nn.Dropout(config.dropout),
-            nn.RMSNorm(config.dim_emb, eps=config.norm_eps),
+        self.protein_bert = ProteinBERT(
+            num_tokens=26,
+            dim=128,
+            dim_global=512,
+            depth=6,
+            narrow_conv_kernel=9,
+            wide_conv_kernel=9,
+            wide_conv_dilation=5,
+            attn_heads=4,
+            attn_dim_head=64,
+            filename="bind_transformer/modules/epoch_92400_sample_23500000.pkl",
         )
 
     def _init_weights(self, module):
         # 从roformer抄的初始化方法。增加了self.generator来固定随机生成。让参数初始化可重复。
-        if isinstance(module, nn.Linear):
+        if isinstance(module, nn.Linear) or isinstance(module, EinMix):
             # Slightly different from the TF version which uses truncated_normal for initialization
             # cf https://github.com/pytorch/pytorch/pull/5617
             module.weight.data.normal_(
@@ -277,14 +186,13 @@ class BindTransformerModel(PreTrainedModel):
             if module.padding_idx is not None:
                 module.weight.data[module.padding_idx].zero_()
         elif isinstance(module, nn.RMSNorm):
-            module.bias.data.zero_()
             module.weight.data.fill_(1.0)
 
     def forward(
         self,
         protein_ids: torch.Tensor,
         second_ids: torch.Tensor,
-        DNA_ids: torch.Tensor,
+        dna_ids: torch.Tensor,
         bind: torch.Tensor = None,
     ):
         """
@@ -296,52 +204,37 @@ class BindTransformerModel(PreTrainedModel):
         output["logit"]: Binary classification logits (batch_size,).
         output["loss"]: If bind is provided, the loss is cross entropy.
         """
-        self.accession_input(protein_ids, second_ids, DNA_ids, bind)
+        self.accession_input(protein_ids, second_ids, dna_ids, bind)
 
-        # 蛋白质氨基酸编码
+        # 氨基酸编码
         protein_embs = self.protein_bert(
             protein_ids,
         )
+        protein_embs = self.protein_bert_head(protein_embs)
         # 二级结构编码
-        second_embs = self.second_encode(
-            second_ids,
-        )
-        # DNA自注意力编码
-        DNA_embs = self.DNA_self_attention(DNA_ids)
-        # DNA和氨基酸交叉注意力
-        DNA_embs = DNA_embs + self.DNA_protein_cross_attention(
-            F.rms_norm(
-                DNA_embs, normalized_shape=self.config.dim_emb, eps=self.config.norm_eps
-            ),
-            protein_embs,
-        )
-        # DNA和二级结构交叉注意力
-        DNA_embs = DNA_embs + self.DNA_second_cross_attention(
-            F.rms_norm(
-                DNA_embs, normalized_shape=self.config.dim_emb, eps=self.config.norm_eps
-            ),
-            second_embs,
-        )
-        # DNA前馈网络
-        DNA_embs = self.DNA_ffn(DNA_embs)
+        second_embs, second_mask = self.second_encoder(second_ids)
+        # DNA编码
+        dna_embs = self.dna_encoder(dna_ids, protein_embs, second_embs, second_mask)
         # 分类头
-        logits = self.classifier(DNA_embs)
+        logits = self.classifier(dna_embs[:, 0, :])
 
         if bind is not None:
-            return {"logit": logits, "loss": self.loss_fn(input=logits, target=bind)}
+            # 损失函数加上弹性网络正则化，线性层和卷积层只算权重，不算偏置，其它层不考虑
+            loss = self.loss_fn(input=logits, target=bind) + self.elastic_net(self)
+            return {"logit": logits, "loss": loss}
         return {"logit": logits}
 
     def accession_input(
         self,
         protein_ids: torch.Tensor,
         second_ids: torch.Tensor,
-        DNA_ids: torch.Tensor,
+        dna_ids: torch.Tensor,
         bind: Union[torch.Tensor, None],
     ) -> None:
         # 检查批处理大小是否一致
         assert (
             protein_ids.shape[0] == second_ids.shape[0]
-            and protein_ids.shape[0] == DNA_ids.shape[0]
+            and protein_ids.shape[0] == dna_ids.shape[0]
             and (bind is None or protein_ids.shape[0] == bind.shape[0])
         ), "batch size is not consistent"
         # 检查氨基酸和二级结构长度一致, protein bert会在蛋白序列开头和结尾增加<start>和<end> token, 所以长度增加了2
@@ -351,4 +244,4 @@ class BindTransformerModel(PreTrainedModel):
         # 检查输入序列长度有没有超标。
         assert protein_ids.shape[-1] <= self.config.max_length, "protein is too long"
         # 检查DNA是否太长
-        assert DNA_ids.shape[-1] <= self.config.max_length
+        assert dna_ids.shape[-1] <= self.config.max_length

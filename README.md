@@ -1,14 +1,14 @@
 TODO
 ```list
+check accepts_loss_kwargs when running
 remove duplicate DNA sequences
 latent attention
 multi-scale attention
 logit和概率的AUC可能不一样
-baseline需要加上24年的briefings bioinformatics和李天杰说的review
+baseline需要加上24年的briefings bioinformatics和李天杰说的review,以及DeepDF的引用
 Use better negative data than random shuffle. Maybe filter by motif?
 Model interpretability.
 Baseline model.
-Use proteinBERT.
 Auto fine-tuning.
 Add comment.
 Write paper.

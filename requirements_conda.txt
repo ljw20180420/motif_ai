@@ -9,7 +9,10 @@ conda-forge::transformers
 conda-forge::accelerate
 conda-forge::evaluate
 conda-forge::gradio
+conda-forge::opt_einsum
 conda-forge::einops
+conda-forge::optuna
+conda-forge::postgresql
 bioconda::entrez-direct
 conda-forge::ncbi-datasets-cli
 bioconda::igv

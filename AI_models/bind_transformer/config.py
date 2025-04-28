@@ -1,8 +1,8 @@
 import configargparse
 import pathlib
-import torch
 import logging
 import sys
+import yaml
 
 
 def get_config(config_files):
@@ -14,6 +14,7 @@ def get_config(config_files):
         description="Arguments for transcriptor binding roformer model.",
         default_config_files=config_files,
         auto_env_var_prefix="BIND_TRANSFORMER_",
+        config_file_parser_class=configargparse.ConfigparserConfigFileParser,
     )
 
     # command parameters
@@ -54,7 +55,8 @@ def get_config(config_files):
     parser_common.add_argument(
         "--device",
         type=str,
-        default="cuda" if torch.cuda.is_available() else "cpu",
+        required=True,
+        choices=["cpu", "cuda"],
         help="Device for computation (cuda or cpu). If not specified, use cuda if available",
     )
     parser_common.add_argument(
@@ -71,11 +73,10 @@ def get_config(config_files):
         help="Input directory contains csv files with header protein,secondary_structure,DNA,bind. Used for inference.",
     )
     parser_common.add_argument(
-        "--fp",
-        type=str,
+        "--fp16",
+        type=bool,
         required=True,
-        choices=["fp16", "fp32", "fp64"],
-        help="Float precision.",
+        help="Whether to use fp16.",
     )
 
     # dataset parameters
@@ -97,13 +98,13 @@ def get_config(config_files):
         title="data loader", description="Parameters for data loader."
     )
     parser_data_loader.add_argument(
-        "--batch_size", type=int, required=True, help="Batch size."
+        "--dna_length",
+        type=int,
+        required=True,
+        help="DNA of this length will be extracted from the input if possible. If set to 0, will determined the length by the number of zinc finger of the protein.",
     )
     parser_data_loader.add_argument(
-        "--DNA_length",
-        type=int,
-        default=0,
-        help="DNA of this length will be extracted from the input if possible. If not give (i.e. 0), will determined the length by the number of zinc finger of the protein.",
+        "--batch_size", type=int, required=True, help="Batch size."
     )
 
     # optimizer parameters
@@ -115,17 +116,23 @@ def get_config(config_files):
         type=str,
         required=True,
         choices=[
-            "adamw_hf",
             "adamw_torch",
             "adamw_torch_fused",
-            "adamw_apex_fused",
-            "adamw_anyprecision",
             "adafactor",
         ],
         help="Optimizer for training.",
     )
     parser_optimizer.add_argument(
         "--learning_rate", type=float, required=True, help="Learn rate of training."
+    )
+    parser_optimizer.add_argument(
+        "--beta1", type=float, required=True, help="beta1 for AdamW."
+    )
+    parser_optimizer.add_argument(
+        "--beta2", type=float, required=True, help="beta2 for AdamW."
+    )
+    parser_optimizer.add_argument(
+        "--epsilon", type=float, required=True, help="epsilon for AdamW."
     )
 
     # scheduler parameters
@@ -180,7 +187,7 @@ def get_config(config_files):
         help="The vocabulary size of protein secondary structure. 11 secondary structrue and 1 mask token, totally 12.",
     )
     parser_roformer.add_argument(
-        "--DNA_vocab",
+        "--dna_vocab",
         type=int,
         required=True,
         help="The vocabulary size of DNA. 4 nucletides and 1 mask token and 1 [CLS] token, totally 6.",
@@ -210,12 +217,6 @@ def get_config(config_files):
         "--depth", type=int, required=True, help="Number of EncoderLayer."
     )
     parser_roformer.add_argument(
-        "--chunk_size_feed_forward",
-        type=int,
-        required=True,
-        help="The chunk size of all feed forward layers in the residual attention blocks. A chunk size of 0 means that the feed forward layer is not chunked.",
-    )
-    parser_roformer.add_argument(
         "--dim_ffn",
         type=int,
         required=True,
@@ -228,30 +229,71 @@ def get_config(config_files):
         help="The dropout probability.",
     )
     parser_roformer.add_argument(
-        "--initializer_range",
-        type=float,
-        required=True,
-        help="The standard deviation of the truncated_normal_initializer for initializing all weight matrices.",
-    )
-    parser_roformer.add_argument(
         "--norm_eps",
         type=float,
         required=True,
         help="The epsilon used by the normalization layers.",
     )
     parser_roformer.add_argument(
-        "--rotary_value",
-        type=bool,
-        required=True,
-        help="Whether or not apply rotary position embeddings on value layer.",
-    )
-    parser_roformer.add_argument(
         "--pos_weight",
         type=float,
-        help="Weight for positive samples (https://www.tensorflow.org/tutorials/structured_data/imbalanced_data). If not specified, then pos_weight = neg / pos. pos is the number of positive sample. neg is the number of negative sample.",
+        required=True,
+        help="Weight for positive samples (https://www.tensorflow.org/tutorials/structured_data/imbalanced_data). If set to 0, then pos_weight = neg / pos. pos is the number of positive sample. neg is the number of negative sample.",
+    )
+    parser_roformer.add_argument(
+        "--reg_l1",
+        type=float,
+        required=True,
+        help="l1 weight decay.",
+    )
+    parser_roformer.add_argument(
+        "--reg_l2",
+        type=float,
+        required=True,
+        help="l2 weight decay.",
+    )
+    parser_roformer.add_argument(
+        "--initializer_range",
+        type=float,
+        required=True,
+        help="The standard deviation of the truncated_normal_initializer for initializing all weight matrices.",
     )
 
-    return parser.parse_args()
+    # hpo (hyperparameter optimization) parameters
+    parser_hpo = parser.add_argument_group(
+        title="hpo", description="Hyperparameter optimization."
+    )
+    parser_hpo.add_argument(
+        "--hp_name",
+        type=str,
+        required=True,
+        help="The job name of hyperparameter search.",
+    )
+    parser_hpo.add_argument(
+        "--hp_storage",
+        type=str,
+        required=True,
+        help="The sql url for optuna.",
+    )
+    parser_hpo.add_argument(
+        "--redundant_parameters",
+        action="append",
+        type=yaml.safe_load,
+        default=[],
+        help="Redundant parameters to apply hyperparameter search.",
+    )
+    parser_hpo.add_argument(
+        "--n_trials", type=int, required=True, help="Number of optuna trials."
+    )
+
+    args = parser.parse_args()
+    for pr in args.redundant_parameters:
+        if pr["type"] == "float":
+            pr["low"], pr["high"] = float(pr["low"]), float(pr["high"])
+        if pr["type"] == "int":
+            pr["low"], pr["high"] = int(pr["low"]), int(pr["high"])
+
+    return args
 
 
 def get_logger(log_level):
