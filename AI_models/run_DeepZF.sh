@@ -3,6 +3,9 @@
 # 切换运行路径到脚本路径
 cd $( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
+# 使用严格模式
+set -euo pipefail
+
 # 收集所有accession
 accessions=()
 for narrowPeak in $(ls $DATA_DIR/sorted/*.sorted.narrowPeak)

@@ -13,6 +13,7 @@ conda-forge::opt_einsum
 conda-forge::einops
 conda-forge::optuna
 conda-forge::postgresql
+conda-forge::psycopg
 bioconda::entrez-direct
 conda-forge::ncbi-datasets-cli
 bioconda::igv

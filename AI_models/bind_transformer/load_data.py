@@ -18,13 +18,13 @@ def data_collector(
     results["second_ids"] = second_tokenizer(
         [seconds[example["index"]] for example in examples],
     )
-    results["DNA_ids"] = DNA_tokenizer(
-        [example["DNA"] for example in examples],
+    results["dna_ids"] = DNA_tokenizer(
+        [example["dna"] for example in examples],
         [zinc_nums[example["index"]] for example in examples],
     )
 
     for key in examples[0].keys():
-        if key == "DNA" or key == "index":
+        if key == "dna" or key == "index":
             continue
 
         results[key] = torch.tensor(

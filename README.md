@@ -1,6 +1,8 @@
 TODO
 ```list
-check accepts_loss_kwargs when running
+psycopg.errors.UndefinedFunction: operator does not exist: trialvaluetype = character varying,
+LINE 3: ...$3::INTEGER ORDER BY CASE trial_values.value_type WHEN $4::V...
+HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
 remove duplicate DNA sequences
 latent attention
 multi-scale attention
@@ -17,7 +19,9 @@ Write paper.
 ### 运行流程
 ```bash
 preprocess/run.sh
-AI_models/run_DeepZF.sh
+AI_models/run_bind_transformer.py --command download
+AI_models/run_bind_transformer.py --command train
+# AI_models/run_DeepZF.sh
 ```
 
 ### Install

@@ -7,9 +7,9 @@ from typing import Union
 # torch does not import opt_einsum as backend by default. import opt_einsum manually will enable it.
 from torch.backends import opt_einsum
 from einops.layers.torch import EinMix, Rearrange
-from .modules.protein_bert import ProteinBERT
-from .modules.encoder import Second_Encoder, DNA_Encoder
-from .modules.common import Elastic_Net
+from .protein_bert import ProteinBERT
+from .encoder import Second_Encoder, DNA_Encoder
+from .common import Elastic_Net
 
 
 class BindTransformerConfig(PretrainedConfig):
@@ -27,7 +27,7 @@ class BindTransformerConfig(PretrainedConfig):
         protein_vocab: int = None,
         second_vocab: int = None,
         dna_vocab: int = None,
-        max_length: int = None,
+        max_num_tokens: int = None,
         dim_emb: int = None,
         num_heads: int = None,
         dim_heads: int = None,
@@ -45,7 +45,7 @@ class BindTransformerConfig(PretrainedConfig):
         self.protein_vocab = protein_vocab
         self.second_vocab = second_vocab
         self.dna_vocab = dna_vocab
-        self.max_length = max_length
+        self.max_num_tokens = max_num_tokens
         self.dim_emb = dim_emb
         self.num_heads = num_heads
         self.dim_heads = dim_heads
@@ -79,7 +79,7 @@ class BindTransformerModel(PreTrainedModel):
         # 二级结构编码器
         self.second_encoder = Second_Encoder(
             config.second_vocab,
-            config.max_length,
+            config.max_num_tokens,
             config.dim_emb,
             config.dim_heads,
             config.num_heads,
@@ -92,7 +92,7 @@ class BindTransformerModel(PreTrainedModel):
         # DNA编码器
         self.dna_encoder = DNA_Encoder(
             config.dna_vocab,
-            config.max_length,
+            config.max_num_tokens,
             config.dim_emb,
             config.dim_heads,
             config.num_heads,
@@ -166,7 +166,7 @@ class BindTransformerModel(PreTrainedModel):
             wide_conv_dilation=5,
             attn_heads=4,
             attn_dim_head=64,
-            filename="bind_transformer/modules/epoch_92400_sample_23500000.pkl",
+            filename="bind_transformer/epoch_92400_sample_23500000.pkl",
         )
 
     def _init_weights(self, module):
@@ -207,9 +207,7 @@ class BindTransformerModel(PreTrainedModel):
         self.accession_input(protein_ids, second_ids, dna_ids, bind)
 
         # 氨基酸编码
-        protein_embs = self.protein_bert(
-            protein_ids,
-        )
+        protein_embs = self.protein_bert(protein_ids)
         protein_embs = self.protein_bert_head(protein_embs)
         # 二级结构编码
         second_embs, second_mask = self.second_encoder(second_ids)
@@ -237,11 +235,11 @@ class BindTransformerModel(PreTrainedModel):
             and protein_ids.shape[0] == dna_ids.shape[0]
             and (bind is None or protein_ids.shape[0] == bind.shape[0])
         ), "batch size is not consistent"
-        # 检查氨基酸和二级结构长度一致, protein bert会在蛋白序列开头和结尾增加<start>和<end> token, 所以长度增加了2
+        # 检查蛋白是否太长, protein bert会在蛋白序列开头和结尾增加<start>和<end> token, 所以长度增加了2
         assert (
-            protein_ids.shape[-1] == second_ids.shape[-1] + 2
-        ), "protein sequence length and secondary structure annotation length are not consistent"
-        # 检查输入序列长度有没有超标。
-        assert protein_ids.shape[-1] <= self.config.max_length, "protein is too long"
-        # 检查DNA是否太长
-        assert dna_ids.shape[-1] <= self.config.max_length
+            protein_ids.shape[-1] <= self.config.max_num_tokens + 2
+        ), "protein is too long"
+        # 检查二级结构是否太长
+        assert second_ids.shape[-1] <= self.config.max_num_tokens, "second is too long"
+        # 检查DNA是否太长, # DNA开头有个[CLS] token, 所以最大长度要+1
+        assert dna_ids.shape[-1] <= self.config.max_num_tokens + 1, "DNA is too long"

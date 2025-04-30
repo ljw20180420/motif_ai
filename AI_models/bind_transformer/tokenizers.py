@@ -27,8 +27,7 @@ class DNA_Tokenizer:
         extracted_dnas, max_length = [], 0
         for dna, zinc_num in zip(dnas, zinc_nums):
             dna_length = self.dna_length if self.dna_length > 0 else 10 + 3 * zinc_num
-            if len(dna) < dna_length:
-                raise ValueError("DNA太短")
+            assert len(dna) >= dna_length, "DNA太短"
             start = (len(dna) - dna_length) // 2
             extracted_dna = "c" + dna[start : start + dna_length]
             max_length = (
@@ -49,7 +48,7 @@ class DNA_Tokenizer:
                 for extracted_dna in extracted_dnas
             ],
             "* n",
-        )
+        )[0]
 
 
 class Second_Tokenizer:
@@ -80,7 +79,7 @@ class Second_Tokenizer:
                 for second in seconds
             ],
             "* n",
-        )
+        )[0]
 
 
 class Protein_Tokenizer:
@@ -111,7 +110,7 @@ class Protein_Tokenizer:
                 for protein in proteins
             ],
             "* n",
-        )
+        )[0]
 
 
 class Protein_Bert_Tokenizer:
@@ -127,8 +126,8 @@ class Protein_Bert_Tokenizer:
     max_length: protein bert不使用mask, 而是用pad. 因此需要固定max_length.
     """
 
-    def __init__(self, max_length: int) -> None:
-        self.max_length = max_length
+    def __init__(self, max_num_tokens: int) -> None:
+        self.max_length = max_num_tokens
         self.protein_tokenmap = torch.zeros(116, dtype=torch.int64)
         self.protein_tokenmap[
             np.frombuffer("ACDEFGHIKLMNPQRSTUVWXYosep".encode(), dtype=np.int8).astype(
@@ -150,4 +149,4 @@ class Protein_Bert_Tokenizer:
                 for protein in proteins
             ],
             "* n",
-        )
+        )[0]

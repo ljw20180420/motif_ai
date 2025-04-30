@@ -193,10 +193,10 @@ def get_config(config_files):
         help="The vocabulary size of DNA. 4 nucletides and 1 mask token and 1 [CLS] token, totally 6.",
     )
     parser_roformer.add_argument(
-        "--max_length",
+        "--max_num_tokens",
         type=int,
         required=True,
-        help="The maximum length of rotatory position embedding.",
+        help="The maximum length of DNA and protein length, needed by rotatory position embedding.",
     )
     parser_roformer.add_argument(
         "--dim_emb", type=int, required=True, help="Model embedding dimension."
@@ -264,7 +264,7 @@ def get_config(config_files):
         title="hpo", description="Hyperparameter optimization."
     )
     parser_hpo.add_argument(
-        "--hp_name",
+        "--hp_study_name",
         type=str,
         required=True,
         help="The job name of hyperparameter search.",

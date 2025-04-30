@@ -1,10 +1,14 @@
-from transformers import Trainer, TrainingArguments
+from transformers import (
+    Trainer,
+    TrainingArguments,
+)
 from transformers.training_args import OptimizerNames
 from datasets import Dataset
 from pathlib import Path
 from logging import Logger
 from typing import Union
 import optuna
+from datetime import datetime
 from .tokenizers import (
     DNA_Tokenizer,
     Protein_Bert_Tokenizer,
@@ -13,61 +17,6 @@ from .tokenizers import (
 from .model import BindTransformerConfig, BindTransformerModel
 from .load_data import data_collector
 from .metric import compute_metrics
-
-
-class MyTrainer(Trainer):
-    def create_optimizer_and_scheduler(self, num_training_steps: int):
-        if self._trail is not None:
-            # 修改优化器参数
-            if "optim" in self._trial.params:
-                assert self._trial.params["optim"] in [
-                    OptimizerNames.ADAFACTOR,
-                    OptimizerNames.ADAMW_TORCH,
-                    OptimizerNames.ADAMW_TORCH_FUSED,
-                ]
-                setattr(self.args, "optim", self._trial.params["optim"])
-            if "learning_rate" in self._trial.params:
-                setattr(self.args, "learning_rate", self._trial.params["learning_rate"])
-            for key, val in self._trial.params:
-                if self.args.optim == OptimizerNames.ADAFACTOR:
-                    continue
-                if self.args.optim in [
-                    OptimizerNames.ADAMW_TORCH,
-                    OptimizerNames.ADAMW_TORCH_FUSED,
-                ] and key not in [
-                    "adam_beta1",
-                    "adam_beta2",
-                    "adam_epsilon",
-                ]:
-                    continue
-                setattr(self.args, key, val)
-
-            # 修改学习率参数
-            if "lr_scheduler_type" in self._trial.params:
-                assert self._trial.params["lr_scheduler_type"] in [
-                    "linear",
-                    "cosine",
-                    "cosine_with_restarts",
-                    "polynomial",
-                    "constant",
-                    "constant_with_warmup",
-                    "inverse_sqrt",
-                    "reduce_lr_on_plateau",
-                    "cosine_with_min_lr",
-                    "warmup_stable_decay",
-                ]
-                setattr(
-                    self.args,
-                    "lr_scheduler_type",
-                    self._trial.params["lr_scheduler_type"],
-                )
-            if "warmup_steps" in self._trial.params:
-                setattr(
-                    self.args,
-                    "warmup_steps",
-                    self._trial.params["warmup_steps"],
-                )
-            super().create_optimizer_and_scheduler(num_training_steps)
 
 
 def train(
@@ -93,7 +42,7 @@ def train(
     protein_vocab: int,
     second_vocab: int,
     dna_vocab: int,
-    max_length: int,
+    max_num_tokens: int,
     dim_emb: int,
     num_heads: int,
     dim_heads: int,
@@ -105,7 +54,7 @@ def train(
     reg_l1: float,
     reg_l2: float,
     initializer_range: float,
-    hp_name: str,
+    hp_study_name: str,
     hp_storage: str,
     redundant_parameters: list[dict[str, Union[str, int, float, list]]],
     n_trials: int,
@@ -115,8 +64,10 @@ def train(
     """
 
     do_hyperparameter_search = (
-        hp_name and hp_storage and len(redundant_parameters) and n_trials > 0
+        hp_study_name and hp_storage and len(redundant_parameters) and n_trials > 0
     )
+    if do_hyperparameter_search:
+        hp_study_name = f"""{hp_study_name}.{datetime.now().isoformat()}"""
 
     logger.info("estimate positive weight")
     if pos_weight == 0.0:
@@ -136,7 +87,7 @@ def train(
             "protein_vocab": protein_vocab,
             "second_vocab": second_vocab,
             "dna_vocab": dna_vocab,
-            "max_length": max_length,
+            "max_num_tokens": max_num_tokens,
             "dim_emb": dim_emb,
             "num_heads": num_heads,
             "dim_heads": dim_heads,
@@ -150,8 +101,9 @@ def train(
             "initializer_range": initializer_range,
             "seed": seed,
         }
+
         if trial:
-            for key, val in trial.params:
+            for key, val in trial.params.items():
                 if key in config:
                     config[key] = val
         return BindTransformerModel(BindTransformerConfig(**config))
@@ -161,7 +113,7 @@ def train(
         output_dir=(
             train_output_dir / "train"
             if not do_hyperparameter_search
-            else train_output_dir / hp_name
+            else train_output_dir / hp_study_name
         ),
         eval_strategy="epoch",
         eval_accumulation_steps=1,  # 省GPU
@@ -191,7 +143,7 @@ def train(
         name=scheduler, num_epochs=num_epochs, warmup_ratio=warmup_ratio
     )
 
-    trainer = MyTrainer(
+    trainer = Trainer(
         args=training_args,
         data_collator=lambda examples: data_collector(
             examples,
@@ -199,7 +151,7 @@ def train(
             seconds,
             zinc_nums,
             DNA_Tokenizer(dna_length),
-            Protein_Bert_Tokenizer(),
+            Protein_Bert_Tokenizer(max_num_tokens),
             Second_Tokenizer(),
         ),
         train_dataset=ds["train"],
@@ -224,32 +176,34 @@ def train(
         logger.info("search hyperparameter")
 
         def hp_space(trial: optuna.trial.Trial):
-            params = {}
             for param in redundant_parameters:
                 if param["type"] == "categorical":
                     param.pop("type")
-                    params[param["name"]] = trial.suggest_categorical(**param)
+                    trial.suggest_categorical(**param)
                 elif param["type"] == "int":
                     param.pop("type")
-                    params[param["name"]] = trial.suggest_int(**param)
+                    trial.suggest_int(**param)
                 else:
                     assert (
                         param["type"] == "float"
                     ), "redundant parameter type is not in categorical, int, float"
                     param.pop("type")
-                    params[param["name"]] = trial.suggest_float(**param)
-            return params
+                    trial.suggest_float(**param)
+            return trial.params
 
         def compute_objective(metrics):
             return metrics["eval_loss"]
 
+        # Trainer会自动调用_report_to_hp_search方法，从而调用optuna.TrialPruned()
         trainer.hyperparameter_search(
-            hp_scape=hp_space,
+            hp_space=hp_space,
             compute_objective=compute_objective,
             n_trials=n_trials,
             direction="minimize",
             backend="optuna",
-            hp_name=hp_name,
-            study_name=hp_name,
+            hp_name=None,
             storage=hp_storage,
+            sampler=None,  # 默认optuna.samplers.TPESampler()
+            pruner=None,  # 默认optuna.pruners.MedianPruner()
+            study_name=hp_study_name,
         )

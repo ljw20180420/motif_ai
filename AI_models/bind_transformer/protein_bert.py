@@ -16,6 +16,7 @@ class CrossAttention(nn.Module):
         self.scale = dim_head**-0.5
         self.dim_global = dim_global
         self.heads = heads
+        self.dim_head = dim_head
 
         self.to_q = nn.Sequential(
             EinMix(
@@ -46,7 +47,16 @@ class CrossAttention(nn.Module):
         k = self.to_k(context)
         v = self.to_v(context)
 
-        sim = einsum(q, k, "b (h d_h), b s (h d_h) -> b s h") * self.scale
+        sim = (
+            einsum(
+                rearrange(q, "b (h d_h) -> b h d_h", h=self.heads, d_h=self.dim_head),
+                rearrange(
+                    k, "b s (h d_h) -> b s h d_h", h=self.heads, d_h=self.dim_head
+                ),
+                "b h d_h, b s h d_h -> b s h",
+            )
+            * self.scale
+        )
         attn = sim.softmax(dim=1)
         out = einsum(attn, v, "b s h, b s h d -> b h d")
         out = rearrange(out, "b h d -> b (h d)", h=self.heads)
@@ -246,9 +256,10 @@ class ProteinBERT(nn.Module):
         for i, layer in enumerate(self.layers):
             # torch Linear weight is (out_feature, in_feature)
             # tensorflow Linear weight is (in_feature, out_feature)
+            # however, EinMix weight is (in_feature, out_feature), the same as tensorflow
             layer.extract_global_info[0].weight.data = torch.from_numpy(
                 model_weights[i * 23 + 3]
-            ).T
+            )
             layer.extract_global_info[0].bias.data = torch.from_numpy(
                 model_weights[i * 23 + 4]
             )
@@ -270,7 +281,7 @@ class ProteinBERT(nn.Module):
             )
             layer.local_feedforward[1].module[0].weight.data = torch.from_numpy(
                 model_weights[i * 23 + 11]
-            ).T
+            )
             layer.local_feedforward[1].module[0].bias.data = torch.from_numpy(
                 model_weights[i * 23 + 12]
             )
@@ -282,7 +293,7 @@ class ProteinBERT(nn.Module):
             )
             layer.global_dense[0].weight.data = torch.from_numpy(
                 model_weights[i * 23 + 15]
-            ).T
+            )
             layer.global_dense[0].bias.data = torch.from_numpy(
                 model_weights[i * 23 + 16]
             )
@@ -290,19 +301,16 @@ class ProteinBERT(nn.Module):
                 torch.from_numpy(model_weights[i * 23 + 17])
                 .permute(1, 0, 2)
                 .reshape(512, -1)
-                .T
             )
             layer.global_attend_local.to_k[0].weight.data = (
                 torch.from_numpy(model_weights[i * 23 + 18])
                 .permute(1, 0, 2)
                 .reshape(128, -1)
-                .T
             )
             layer.global_attend_local.to_v[0].weight.data = (
                 torch.from_numpy(model_weights[i * 23 + 19])
                 .permute(1, 0, 2)
                 .reshape(128, -1)
-                .T
             )
             layer.global_feedforward[0].weight.data = torch.from_numpy(
                 model_weights[i * 23 + 20]
@@ -312,7 +320,7 @@ class ProteinBERT(nn.Module):
             )
             layer.global_feedforward[1].module[0].weight.data = torch.from_numpy(
                 model_weights[i * 23 + 22]
-            ).T
+            )
             layer.global_feedforward[1].module[0].bias.data = torch.from_numpy(
                 model_weights[i * 23 + 23]
             )

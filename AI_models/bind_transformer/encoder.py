@@ -3,7 +3,7 @@ from torch import nn
 
 # torch does not import opt_einsum as backend by default. import opt_einsum manually will enable it.
 from torch.backends import opt_einsum
-from einops import rearrange
+from einops import rearrange, einsum
 from einops.layers.torch import EinMix
 from torchtune.modules import RotaryPositionalEmbeddings, MultiHeadAttention
 from .common import Residual
@@ -13,7 +13,7 @@ class Second_Encoder(nn.Module):
     def __init__(
         self,
         vocab: int,
-        max_length: int,
+        max_num_tokens: int,
         dim_emb: int,
         dim_heads: int,
         num_heads: int,
@@ -75,9 +75,9 @@ class Second_Encoder(nn.Module):
                         nhd=num_heads * dim_heads,
                     ),
                     pos_embeddings=RotaryPositionalEmbeddings(
-                        dim=dim_heads, max_seq_len=max_length
+                        dim=dim_heads, max_seq_len=max_num_tokens
                     ),
-                    max_seq_len=max_length,
+                    max_seq_len=max_num_tokens,
                     is_causal=False,
                     attn_dropout=dropout,
                 )
@@ -116,12 +116,14 @@ class Second_Encoder(nn.Module):
 
     def forward(self, second_ids: torch.Tensor) -> torch.Tensor:
         # 二级结构mask
-        mask = rearrange((second_ids != 0), "b s -> b () s")
+        mask = second_ids != 0
         # 二级结构编码
         embs = self.embed(second_ids)
         for i in range(self.depth):
             embs_rms = self.rms_norms[i](embs)
-            embs = embs + self.self_attentions[i](x=embs_rms, y=embs_rms, mask=mask)
+            embs = embs + self.self_attentions[i](
+                x=embs_rms, y=embs_rms, mask=einsum(mask, mask, "b s1, b s2 -> b s1 s2")
+            )
             embs = self.ffns[i](embs)
 
         embs = self.last_rms_norm(embs)
@@ -133,7 +135,7 @@ class DNA_Encoder(nn.Module):
     def __init__(
         self,
         vocab: int,
-        max_length: int,
+        max_num_tokens: int,
         dim_emb: int,
         dim_heads: int,
         num_heads: int,
@@ -195,10 +197,11 @@ class DNA_Encoder(nn.Module):
                         d=dim_emb,
                         nhd=num_heads * dim_heads,
                     ),
+                    # DNA开头有个[CLS] token, 所以最大长度要+1
                     pos_embeddings=RotaryPositionalEmbeddings(
-                        dim=dim_heads, max_seq_len=max_length
+                        dim=dim_heads, max_seq_len=max_num_tokens + 1
                     ),
-                    max_seq_len=max_length,
+                    max_seq_len=max_num_tokens + 1,
                     is_causal=False,
                     attn_dropout=dropout,
                 )
@@ -245,10 +248,11 @@ class DNA_Encoder(nn.Module):
                         d=dim_emb,
                         nhd=num_heads * dim_heads,
                     ),
+                    # protein bert开头结尾有[START]和[END] token, 所以最大长度要+2
                     pos_embeddings=RotaryPositionalEmbeddings(
-                        dim=dim_heads, max_seq_len=max_length
+                        dim=dim_heads, max_seq_len=max_num_tokens + 2
                     ),
-                    max_seq_len=max_length,
+                    max_seq_len=max_num_tokens + 2,
                     is_causal=False,
                     attn_dropout=dropout,
                 )
@@ -295,13 +299,15 @@ class DNA_Encoder(nn.Module):
                         d=dim_emb,
                         nhd=num_heads * dim_heads,
                     ),
+                    # DNA开头有个[CLS] token, 所以最大长度要+1
                     pos_embeddings=RotaryPositionalEmbeddings(
-                        dim=dim_heads, max_seq_len=max_length
+                        dim=dim_heads, max_seq_len=max_num_tokens + 1
                     ),
-                    max_seq_len=max_length,
+                    max_seq_len=max_num_tokens + 1,
                     is_causal=False,
                     attn_dropout=dropout,
                 )
+                for _ in range(depth)
             ]
         )
 
@@ -342,14 +348,16 @@ class DNA_Encoder(nn.Module):
         second_mask: torch.Tensor,
     ) -> torch.Tensor:
         # DNA mask
-        dna_mask = rearrange((dna_ids != 0), "b s -> b () s")
+        dna_mask = dna_ids != 0
 
         # DNA自注意力编码
         dna_embs = self.embed(dna_ids)
         for i in range(self.depth):
             dna_embs_rms = self.rms_norms[i](dna_embs)
             dna_embs = dna_embs + self.self_attentions[i](
-                x=dna_embs_rms, y=dna_embs_rms, mask=dna_mask
+                x=dna_embs_rms,
+                y=dna_embs_rms,
+                mask=einsum(dna_mask, dna_mask, "b s1, b s2 -> b s1 s2"),
             )
 
             # DNA和氨基酸交叉注意力
@@ -362,7 +370,9 @@ class DNA_Encoder(nn.Module):
             # DNA和二级结构交叉注意力
             dna_embs_rms = self.dna_second_rms_norms[i](dna_embs)
             dna_embs = dna_embs + self.dna_second_cross_attentions[i](
-                x=dna_embs_rms, y=second_embs, mask=second_mask
+                x=dna_embs_rms,
+                y=second_embs,
+                mask=einsum(dna_mask, second_mask, "b s1, b s2 -> b s1 s2"),
             )
 
             # DNA前馈网络

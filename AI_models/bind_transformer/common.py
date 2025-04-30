@@ -13,14 +13,14 @@ class Residual(nn.Module):
 
 
 class Elastic_Net(nn.Module):
-    def __init__(self, reg_L1: float, reg_L2: float) -> None:
+    def __init__(self, reg_l1: float, reg_l2: float) -> None:
         super().__init__()
-        self.reg_L1 = reg_L1
-        self.reg_L2 = reg_L2
+        self.reg_l1 = reg_l1
+        self.reg_l2 = reg_l2
 
     def forward(self, model: nn.Module):
         elastic_net_loss = 0.0
-        for module in model.children():
+        for module in model.modules():
             if (
                 isinstance(module, nn.Linear)
                 or isinstance(module, EinMix)
@@ -28,10 +28,11 @@ class Elastic_Net(nn.Module):
                 or isinstance(module, nn.Conv2d)
                 or isinstance(module, nn.Conv3d)
             ):
-                if module.weight.grad is None:
+                if not module.weight.requires_grad:
                     continue
-                elastic_net_loss += self.reg_L1 * LA.norm(
-                    module.weight.flatten(), ord=1
-                ) + self.reg_L2 * LA.norm(module.weight.flatten(), ord=2)
+                elastic_net_loss += (
+                    self.reg_l1 * module.weight.flatten().abs().sum()
+                    + self.reg_l2 * module.weight.flatten().pow(2).sum()
+                )
 
         return elastic_net_loss

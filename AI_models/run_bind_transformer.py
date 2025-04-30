@@ -35,7 +35,7 @@ if args.command == "train":
     ds = load_dataset(
         "csv",
         data_dir=args.data_dir / "DNA_data",
-        column_names=["index", "DNA", "bind"],
+        column_names=["index", "dna", "bind"],
     )
     ds = train_validation_test_split(
         ds, args.validation_ratio, args.test_ratio, args.seed
@@ -65,7 +65,7 @@ if args.command == "train":
         args.protein_vocab,
         args.second_vocab,
         args.dna_vocab,
-        args.max_length,
+        args.max_num_tokens,
         args.dim_emb,
         args.num_heads,
         args.dim_heads,
@@ -77,7 +77,7 @@ if args.command == "train":
         args.reg_l1,
         args.reg_l2,
         args.initializer_range,
-        args.hp_name,
+        args.hp_study_name,
         args.hp_storage,
         args.redundant_parameters,
         args.n_trials,

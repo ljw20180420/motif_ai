@@ -80,7 +80,7 @@ def compute_metrics_probabilities(bind_probabilities: np.ndarray, binds: np.ndar
 
 
 def compute_metrics(logits: np.ndarray, binds: np.ndarray):
-    bind_probabilities = scipy.special.softmax(logits, axis=-1)[:, -1]
+    bind_probabilities = scipy.special.expit(logits)
     return compute_metrics_probabilities(bind_probabilities, binds)
 
 
