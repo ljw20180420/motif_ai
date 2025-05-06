@@ -39,7 +39,6 @@ def test(
     bind_transformer_model = BindTransformerModel.from_pretrained(
         train_output_dir / "train"
     ).to(device)
-    breakpoint()
     # remove parent module name
     bind_transformer_model.__module__ = bind_transformer_model.__module__.split(".")[-1]
 

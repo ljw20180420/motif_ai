@@ -245,7 +245,6 @@ class ProteinBERT(nn.Module):
         return tokens
 
     def load_weights(self, filename):
-        breakpoint()
         if self.global_bias.is_meta:
             return
         with open(filename, "rb") as fd:
