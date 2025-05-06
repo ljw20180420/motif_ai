@@ -11,7 +11,7 @@ declare -A choices
 choices[depth]="6 5 4"
 choices[dim_emb]="128 64 32"
 choices[dim_heads]="64 32 16"
-choices[num_heads]="4 3 2"
+choices[num_heads]="4 2 1"
 choices[dim_ffn]="256 128 64"
 
 for target in depth dim_emb dim_heads num_heads dim_ffn
@@ -22,7 +22,7 @@ do
         sed -r "
             /^xxx =$/s/^xxx =$/${target} = ${value}/
             /^hp_study_name =$/s/$/ ${target}/
-        " bind_transformer/config_custom.ini.template \
+        " bind_transformer/config_custom.ini.hpo \
         > bind_transformer/config_custom.ini
         
         ./run_bind_transformer.py --command train

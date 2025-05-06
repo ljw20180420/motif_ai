@@ -1,0 +1,16 @@
+[scheduler]
+num_epochs = 50.0
+
+[roformer]
+xxx =
+
+[hpo]
+hp_study_name =
+hp_storage = postgresql+psycopg2://localhost:5432/hpo
+redundant_parameters = [
+    {"name": "dropout", "type": "float", "low": 0.0, "high": 0.1},
+    {"name": "reg_l1", "type": "float", "low": 0.0, "high": 1e-7},
+    {"name": "reg_l2", "type": "float", "low": 0.0, "high": 1e-7},
+    {"name": "learning_rate", "type": "float", "low": 1e-6, "high": 1e-3, "log": True}
+    ]
+n_trials = 10

@@ -26,7 +26,7 @@ def download_metrics():
 def compute_metrics_probabilities(bind_probabilities: np.ndarray, binds: np.ndarray):
     F1_metric = evaluate.load("bind_transformer/metrics/f1.py")
     best_F1_result = {"f1": -1}
-    for thres in np.linspace(0.05, 0.95, 19):
+    for thres in np.linspace(0.01, 0.99, 99):
         bind_predictions = bind_probabilities >= thres
         F1_result = F1_metric.compute(predictions=bind_predictions, references=binds)
         if F1_result["f1"] > best_F1_result["f1"]:

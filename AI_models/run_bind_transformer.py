@@ -96,15 +96,16 @@ elif args.command == "test":
 
     results = test(
         ds,
-        proteins,
-        seconds,
-        zinc_nums,
+        ds_protein["protein"],
+        ds_protein["second"],
+        ds_protein["zinc_num"],
         args.train_output_dir,
         args.pipeline_output_dir,
         args.device,
-        args.batch_size,
-        args.DNA_length,
         logger,
+        args.batch_size,
+        args.dna_length,
+        args.max_num_tokens,
     )
 
     print(results)

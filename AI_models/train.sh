@@ -7,5 +7,5 @@ set -euo pipefail
 cd $( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # 清空自定义设置
-> bind_transformer/config_custom.ini
+cp bind_transformer/config_custom.ini.train bind_transformer/config_custom.ini
 ./run_bind_transformer.py --command train

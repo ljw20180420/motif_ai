@@ -210,9 +210,7 @@ class ProteinBERT(nn.Module):
         self.num_tokens = num_tokens
         self.dim_global = dim_global
         self.token_emb = nn.Embedding(num_tokens, dim)
-
-        self.global_bias = nn.Parameter()
-
+        self.global_bias = nn.Parameter(torch.empty(512))
         self.active_global = nn.GELU()
 
         self.layers = nn.ModuleList(
@@ -247,21 +245,24 @@ class ProteinBERT(nn.Module):
         return tokens
 
     def load_weights(self, filename):
+        breakpoint()
+        if self.global_bias.is_meta:
+            return
         with open(filename, "rb") as fd:
             _, model_weights, _ = pickle.load(fd)
-
         self.global_bias.data = torch.from_numpy(model_weights[1])
         self.token_emb.weight.data = torch.from_numpy(model_weights[2])
 
         for i, layer in enumerate(self.layers):
             # torch Linear weight is (out_feature, in_feature)
             # tensorflow Linear weight is (in_feature, out_feature)
-            # however, EinMix weight is (in_feature, out_feature), the same as tensorflow
+            # EinMix weight is (in_feature, out_feature), the same as tensorflow
+            # EinMix bias is (1, out_feature)
             layer.extract_global_info[0].weight.data = torch.from_numpy(
                 model_weights[i * 23 + 3]
             )
-            layer.extract_global_info[0].bias.data = torch.from_numpy(
-                model_weights[i * 23 + 4]
+            layer.extract_global_info[0].bias.data = rearrange(
+                torch.from_numpy(model_weights[i * 23 + 4]), "of -> 1 of"
             )
             # torch Conv weight is (out_channel, in_channel, kernel_dim1, kernel_dim2, ...)
             # tensorflow Conv weight is (kernel_dim1, kernel_dim2, ..., in_channel, out_channel)
@@ -282,8 +283,8 @@ class ProteinBERT(nn.Module):
             layer.local_feedforward[1].module[0].weight.data = torch.from_numpy(
                 model_weights[i * 23 + 11]
             )
-            layer.local_feedforward[1].module[0].bias.data = torch.from_numpy(
-                model_weights[i * 23 + 12]
+            layer.local_feedforward[1].module[0].bias.data = rearrange(
+                torch.from_numpy(model_weights[i * 23 + 12], "of -> 1 of")
             )
             layer.local_feedforward[2].weight.data = torch.from_numpy(
                 model_weights[i * 23 + 13]
@@ -294,8 +295,8 @@ class ProteinBERT(nn.Module):
             layer.global_dense[0].weight.data = torch.from_numpy(
                 model_weights[i * 23 + 15]
             )
-            layer.global_dense[0].bias.data = torch.from_numpy(
-                model_weights[i * 23 + 16]
+            layer.global_dense[0].bias.data = rearrange(
+                torch.from_numpy(model_weights[i * 23 + 16], "of -> 1 of")
             )
             layer.global_attend_local.to_q[0].weight.data = (
                 torch.from_numpy(model_weights[i * 23 + 17])
@@ -321,8 +322,8 @@ class ProteinBERT(nn.Module):
             layer.global_feedforward[1].module[0].weight.data = torch.from_numpy(
                 model_weights[i * 23 + 22]
             )
-            layer.global_feedforward[1].module[0].bias.data = torch.from_numpy(
-                model_weights[i * 23 + 23]
+            layer.global_feedforward[1].module[0].bias.data = rearrange(
+                torch.from_numpy(model_weights[i * 23 + 23], "of -> 1 of")
             )
             layer.global_feedforward[2].weight.data = torch.from_numpy(
                 model_weights[i * 23 + 24]

@@ -12,8 +12,13 @@ from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
 import numpy as np
 from .model import BindTransformerModel
 from .pipeline import BindTransformerPipeline
-from .load_data import data_collector, outputs_test
+from .load_data import data_collector
 from .metric import compute_metrics_probabilities
+from .tokenizers import (
+    DNA_Tokenizer,
+    Protein_Bert_Tokenizer,
+    Second_Tokenizer,
+)
 
 
 @torch.no_grad()
@@ -25,14 +30,16 @@ def test(
     train_output_dir: Path,
     pipeline_output_dir: Path,
     device: str,
-    batch_size: int,
-    DNA_length: int,
     logger: Logger,
+    batch_size: int,
+    dna_length: int,
+    max_num_tokens: int,
 ):
     logger.info("load model")
-    bind_transformer_model = BindTransformerModel.from_pretrained(train_output_dir).to(
-        device
-    )
+    bind_transformer_model = BindTransformerModel.from_pretrained(
+        train_output_dir / "train"
+    ).to(device)
+    breakpoint()
     # remove parent module name
     bind_transformer_model.__module__ = bind_transformer_model.__module__.split(".")[-1]
 
@@ -43,7 +50,13 @@ def test(
         dataset=ds["test"],
         batch_size=batch_size,
         collate_fn=lambda examples: data_collector(
-            examples, DNA_length, proteins, seconds, zinc_nums, outputs_test
+            examples,
+            proteins,
+            seconds,
+            zinc_nums,
+            DNA_Tokenizer(dna_length),
+            Protein_Bert_Tokenizer(max_num_tokens),
+            Second_Tokenizer(),
         ),
     )
 
@@ -70,7 +83,7 @@ def test(
     shutil.copyfile("bind_transformer/pipeline.py", pipeline_output_dir / "pipeline.py")
 
     shutil.copytree(
-        train_output_dir,
+        train_output_dir / "train",
         pipeline_output_dir / list(pipe.components.keys())[0],
         ignore=ignore_func,
         dirs_exist_ok=True,

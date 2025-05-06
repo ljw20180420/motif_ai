@@ -16,4 +16,4 @@ class BindTransformerPipeline(DiffusionPipeline):
             batch["second_ids"].to(self.bind_transformer_model.device),
             batch["DNA_ids"].to(self.bind_transformer_model.device),
         )["logit"]
-        return F.softmax(logits, dim=-1)[:, -1]
+        return F.sigmoid(logits)

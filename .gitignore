@@ -34,3 +34,4 @@ AI_models/DeepZF/Results
 reference
 AI_models/bind_transformer/optuna_postgresql.log
 AI_models/bind_transformer/optuna_postgresql
+AI_models/bind_transformer/config_custom.ini
