@@ -120,14 +120,15 @@ elif args.command == "inference":
 
     for output in inference(
         ds,
-        proteins,
-        seconds,
-        zinc_nums,
+        ds_protein["protein"],
+        ds_protein["second"],
+        ds_protein["zinc_num"],
         args.pipeline_output_dir,
         args.device,
-        args.batch_size,
-        args.DNA_length,
         logger,
+        args.batch_size,
+        args.dna_length,
+        args.max_num_tokens,
     ):
         pass
 

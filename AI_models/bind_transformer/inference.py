@@ -7,7 +7,12 @@ from torch import Tensor
 from torch.utils.data import DataLoader
 from diffusers import DiffusionPipeline
 from tqdm import tqdm
-from .load_data import data_collector, outputs_inference
+from .load_data import data_collector
+from .tokenizers import (
+    DNA_Tokenizer,
+    Protein_Bert_Tokenizer,
+    Second_Tokenizer,
+)
 
 
 @torch.no_grad()
@@ -18,16 +23,23 @@ def inference(
     zinc_nums: List[int],
     pipeline_output_dir: Path,
     device: str,
-    batch_size: int,
-    DNA_length: int,
     logger: Logger,
+    batch_size: int,
+    dna_length: int,
+    max_num_tokens: int,
 ):
     logger.info("setup data loader")
     inference_dataloader = DataLoader(
         dataset=ds["train"],
         batch_size=batch_size,
         collate_fn=lambda examples: data_collector(
-            examples, DNA_length, proteins, seconds, zinc_nums, outputs_inference
+            examples,
+            proteins,
+            seconds,
+            zinc_nums,
+            DNA_Tokenizer(dna_length),
+            Protein_Bert_Tokenizer(max_num_tokens),
+            Second_Tokenizer(),
         ),
     )
 

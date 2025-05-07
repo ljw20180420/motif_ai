@@ -256,7 +256,7 @@ class ProteinBERT(nn.Module):
             # torch Linear weight is (out_feature, in_feature)
             # tensorflow Linear weight is (in_feature, out_feature)
             # EinMix weight is (in_feature, out_feature), the same as tensorflow
-            # EinMix bias is (1, out_feature)
+            # EinMix bias is (1, ..., 1, out_feature)
             layer.extract_global_info[0].weight.data = torch.from_numpy(
                 model_weights[i * 23 + 3]
             )
@@ -283,7 +283,7 @@ class ProteinBERT(nn.Module):
                 model_weights[i * 23 + 11]
             )
             layer.local_feedforward[1].module[0].bias.data = rearrange(
-                torch.from_numpy(model_weights[i * 23 + 12]), "of -> 1 of"
+                torch.from_numpy(model_weights[i * 23 + 12]), "of -> 1 1 of"
             )
             layer.local_feedforward[2].weight.data = torch.from_numpy(
                 model_weights[i * 23 + 13]
