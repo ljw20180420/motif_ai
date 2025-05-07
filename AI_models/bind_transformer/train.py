@@ -202,7 +202,9 @@ def train(
             direction="minimize",
             backend="optuna",
             hp_name=None,
-            storage=hp_storage,
+            storage=optuna.storages.JournalStorage(
+                optuna.storages.journal.JournalFileBackend(hp_storage),
+            ),
             sampler=None,  # 默认optuna.samplers.TPESampler()
             pruner=None,  # 默认optuna.pruners.MedianPruner()
             study_name=hp_study_name,

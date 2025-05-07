@@ -1,14 +1,14 @@
 TODO
 ```list
-use (File-based) Journal Storage instead of RDB
-remove duplicate DNA sequences
 baseline需要加上24年的briefings bioinformatics和李天杰说的review,以及DeepDF的引用
-Use better negative data than random shuffle. Maybe filter by motif?
 Model interpretability. (attention)
 Baseline model. (DummyClassifier, scikit-learn, lightGBM, DeepZF)
 Auto fine-tuning.
 Add comment.
 Write paper.
+use all data
+remove duplicate DNA sequences
+Use better negative data than random shuffle. Maybe filter by motif?
 ```
 
 ### 运行流程
