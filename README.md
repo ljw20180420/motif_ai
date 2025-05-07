@@ -1,5 +1,10 @@
 TODO
 ```list
+加入所有数据
+可变PR, F1的threshold步长
+use (File-based) Journal Storage instead of RDB
+write model in tensordict
+compile tensordict modules
 psycopg.errors.UndefinedFunction: operator does not exist: trialvaluetype = character varying,
 LINE 3: ...$3::INTEGER ORDER BY CASE trial_values.value_type WHEN $4::V...
 HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
@@ -9,8 +14,8 @@ multi-scale attention
 logit和概率的AUC可能不一样
 baseline需要加上24年的briefings bioinformatics和李天杰说的review,以及DeepDF的引用
 Use better negative data than random shuffle. Maybe filter by motif?
-Model interpretability.
-Baseline model.
+Model interpretability. (attention)
+Baseline model. (DummyClassifier, scikit-learn, lightGBM, DeepZF)
 Auto fine-tuning.
 Add comment.
 Write paper.
