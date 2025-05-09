@@ -27,7 +27,7 @@ def eight_to_three(sec):
     # -         None
     # =====     ====
 
-    sec = re.sub(r"[-ITS]", "C", sec)
+    sec = re.sub(r"[-ITS]", "-", sec)
     sec = re.sub(r"G", "H", sec)
     sec = re.sub(r"B", "E", sec)
     return sec

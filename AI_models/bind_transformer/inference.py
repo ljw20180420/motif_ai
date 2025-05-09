@@ -30,7 +30,7 @@ def inference(
 ):
     logger.info("setup data loader")
     inference_dataloader = DataLoader(
-        dataset=ds["train"],
+        dataset=ds,
         batch_size=batch_size,
         collate_fn=lambda examples: data_collector(
             examples,
@@ -48,6 +48,8 @@ def inference(
         pipeline_output_dir, custom_pipeline=pipeline_output_dir.as_posix()
     )
     pipe.bind_transformer_model.to(device)
+    with open(pipeline_output_dir / "threshold", "r") as fd:
+        threshold = float(fd.readline().strip())
 
     for batch in tqdm(inference_dataloader):
-        yield pipe(batch)
+        yield pipe(batch, threshold)

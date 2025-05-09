@@ -60,14 +60,19 @@ class Second_Tokenizer:
     Z: 锌指
     """
 
-    def __init__(self) -> None:
+    def __init__(self, max_num_tokens: int = 0) -> None:
+        self.max_length = max_num_tokens
         self.second_tokenmap = torch.zeros(110, dtype=torch.int64)
         self.second_tokenmap[
             np.frombuffer("mHBEGIPTS-KZ".encode(), dtype=np.int8).astype(np.int64)
         ] = torch.arange(12)
 
     def __call__(self, seconds: List[str]) -> torch.Tensor:
-        max_length = max([len(second) for second in seconds])
+        max_length = (
+            self.max_length
+            if self.max_length > 0
+            else max([len(second) for second in seconds])
+        )
         return pack(
             [
                 self.second_tokenmap[

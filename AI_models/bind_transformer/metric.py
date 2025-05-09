@@ -23,18 +23,28 @@ def download_metrics():
             ld.write(rd.read())
 
 
-def compute_metrics_probabilities(bind_probabilities: np.ndarray, binds: np.ndarray):
-    F1_metric = evaluate.load("bind_transformer/metrics/f1.py")
-    best_F1_result = {"f1": -1}
-    for thres in np.linspace(0.01, 0.99, 99):
-        bind_predictions = bind_probabilities >= thres
-        F1_result = F1_metric.compute(predictions=bind_predictions, references=binds)
-        if F1_result["f1"] > best_F1_result["f1"]:
-            best_F1_result = F1_result
+def select_threshold(values, bind, proba=True):
+    if proba:
+        min_val = 0
+        max_val = 1
+    else:
+        min_val = min(values)
+        max_val = max(values)
+    metric = evaluate.load("bind_transformer/metrics/accuracy.py")
+    best_result = {"accuracy": -1}
+    for thres in np.linspace(min_val, max_val, 99):
+        pred = values >= thres
+        result = metric.compute(predictions=pred, references=bind)
+        if result["accuracy"] > best_result["accuracy"]:
+            best_result = result
             best_thres = thres
+    return best_thres
 
-    hard_class_metrics = evaluate.combine(
+
+def hard_metric(pred, y):
+    metrics = evaluate.combine(
         [
+            "bind_transformer/metrics/f1.py",
             "bind_transformer/metrics/accuracy.py",
             "bind_transformer/metrics/recall.py",
             "bind_transformer/metrics/precision.py",
@@ -42,19 +52,21 @@ def compute_metrics_probabilities(bind_probabilities: np.ndarray, binds: np.ndar
             "bind_transformer/metrics/confusion_matrix.py",
         ]
     )
-    bind_predictions = bind_probabilities >= best_thres
-    hard_results = hard_class_metrics.compute(
-        predictions=bind_predictions, references=binds
-    )
-    confusion_matrix = hard_results.pop("confusion_matrix")
-    hard_results = {
-        **best_F1_result,
-        **hard_results,
+    results = metrics.compute(predictions=pred, references=y)
+    confusion_matrix = results.pop("confusion_matrix")
+    return {
+        **results,
         "true_negative": confusion_matrix[0, 0],
         "false_positive": confusion_matrix[0, 1],
         "false_negative": confusion_matrix[1, 0],
         "true_positive": confusion_matrix[1, 1],
     }
+
+
+def compute_metrics_probabilities(bind_probabilities: np.ndarray, binds: np.ndarray):
+    best_thres = select_threshold(bind_probabilities, binds)
+
+    hard_results = hard_metric(bind_probabilities >= best_thres, binds)
 
     roc_auc_metrics = evaluate.load("bind_transformer/metrics/roc_auc.py")
     roc_auc_results = roc_auc_metrics.compute(
@@ -72,6 +84,7 @@ def compute_metrics_probabilities(bind_probabilities: np.ndarray, binds: np.ndar
     )
 
     return {
+        "threshold": best_thres,
         **hard_results,
         **roc_auc_results,
         **pr_auc_results,

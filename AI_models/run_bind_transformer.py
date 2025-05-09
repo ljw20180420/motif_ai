@@ -87,14 +87,14 @@ elif args.command == "test":
     ds = load_dataset(
         "csv",
         data_dir=args.data_dir / "DNA_data",
-        column_names=["index", "DNA", "bind"],
+        column_names=["index", "dna", "bind"],
     )
     ds = train_validation_test_split(
         ds, args.validation_ratio, args.test_ratio, args.seed
     )
     from bind_transformer.test import test
 
-    results = test(
+    test(
         ds,
         ds_protein["protein"],
         ds_protein["second"],
@@ -108,14 +108,12 @@ elif args.command == "test":
         args.max_num_tokens,
     )
 
-    print(results)
-
 elif args.command == "inference":
     ds = load_dataset(
         "csv",
         data_dir=args.inference_data_dir / "DNA_data",
-        column_names=["index", "DNA", "bind"],
-    )
+        column_names=["index", "dna", "bind"],
+    )["train"]
     from bind_transformer.inference import inference
 
     for output in inference(
@@ -130,7 +128,7 @@ elif args.command == "inference":
         args.dna_length,
         args.max_num_tokens,
     ):
-        pass
+        print("\n".join([str(int(bind)) for bind in output]))
 
 elif args.command == "app":
     from bind_transformer.app import app
@@ -139,4 +137,6 @@ elif args.command == "app":
         args.pipeline_output_dir,
         args.device,
         logger,
+        args.dna_length,
+        args.max_num_tokens,
     )

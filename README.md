@@ -1,5 +1,6 @@
 TODO
 ```list
+阴性对照（随机蛋白序列, 打乱蛋白顺序, 突变锌指蛋白, 未训练的锌指蛋白, 非锌指蛋白）
 baseline需要加上24年的briefings bioinformatics和李天杰说的review,以及DeepDF的引用
 Model interpretability. (attention)
 Baseline model. (DummyClassifier, scikit-learn, lightGBM, DeepZF)
@@ -8,15 +9,15 @@ Add comment.
 Write paper.
 use all data
 remove duplicate DNA sequences
-Use better negative data than random shuffle. Maybe filter by motif?
+Select DNA based on hyper-sensitive sites
+Use diff peak rather than random shuffle as negative samples.
 ```
 
 ### 运行流程
 ```bash
 preprocess/run.sh
 AI_models/run_bind_transformer.py --command download
-AI_models/run_bind_transformer.py --command train
-# AI_models/run_DeepZF.sh
+AI_models/run_bind_transformer.py --command test
 ```
 
 ### Install

@@ -91,31 +91,3 @@ do
             > $DATA_DIR/DeepZF/motifs/$accession.meme
     fi
 done
-
-# 搜索motif
-mkdir -p $DATA_DIR/DeepZF/sites
-shear_DNA_len=100
-for accession in "${accessions[@]}"
-do
-    cut -d, -f2 \
-        $BIND_TRANSFORMER_DATA_DIR/DNA_data/$accession.csv |
-    awk -v shear_DNA_len=$shear_DNA_len '
-        {
-            print substr($0, int((length($0) - shear_DNA_len) / 2) + 1, shear_DNA_len)
-        }
-    ' |
-    sed '=' |
-    sed "1~2s/^/>$accession/" \
-        > $DATA_DIR/DeepZF/tempfile
-    fimo \
-        --best-site \
-        --thresh 1 \
-        --no-qvalue \
-        --max-strand \
-        --max-stored-scores 99999999 \
-        $DATA_DIR/DeepZF/motifs/$accession.meme \
-        $DATA_DIR/DeepZF/tempfile |
-    sort -k1,1V \
-        > $DATA_DIR/DeepZF/sites/$accession.site
-done
-rm $DATA_DIR/DeepZF/tempfile

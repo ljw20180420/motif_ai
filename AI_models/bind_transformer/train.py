@@ -2,7 +2,6 @@ from transformers import (
     Trainer,
     TrainingArguments,
 )
-from transformers.training_args import OptimizerNames
 from datasets import Dataset
 from pathlib import Path
 from logging import Logger
