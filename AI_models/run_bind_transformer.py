@@ -116,6 +116,9 @@ elif args.command == "inference":
     )["train"]
     from bind_transformer.inference import inference
 
+    with open(3, "wb") as fd:
+        ds.to_csv(fd)
+
     for output in inference(
         ds,
         ds_protein["protein"],

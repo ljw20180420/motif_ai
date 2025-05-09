@@ -1,5 +1,7 @@
 TODO
 ```list
+zero-shot learning
+contrastive learning
 阴性对照（随机蛋白序列, 打乱蛋白顺序, 突变锌指蛋白, 未训练的锌指蛋白, 非锌指蛋白）
 baseline需要加上24年的briefings bioinformatics和李天杰说的review,以及DeepDF的引用
 Model interpretability. (attention)
