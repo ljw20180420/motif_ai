@@ -108,57 +108,89 @@ done
 #         > $DATA_DIR/filtered/$accession.filtered.narrowPeak
 # done
 
-# title "调整peak大小"
-# mkdir -p $DATA_DIR/sized
-# seq_len=256
-# for accession in "${accessions[@]}"
+title "调整peak大小|按照summit位置排序"
+mkdir -p $DATA_DIR/sized
+seq_len=256
+for accession in "${accessions[@]}"
+do
+    bedClip \
+        <(
+            awk -v seq_len=$seq_len '
+                {
+                    start = $2
+                    end = $3
+                    summit = $10
+                    new_start = start + summit - int(seq_len / (end - start) * summit)
+                    new_end = new_start + seq_len
+                    new_summit = start + simmit
+                    printf("%s\t%d\t%d\t%d\n", $1, new_start, new_end, new_summit)
+                }
+            ' $DATA_DIR/filtered/$accession.filtered.narrowPeak |
+            sort -k1,1 -k4,4n
+        ) \
+        $GENOME_SIZE \
+        $DATA_DIR/sized/$accession.sized.narrowPeak
+done
+
+title "提取结合位点序列"
+mkdir -p $DATA_DIR/positive
+for accession in "${accessions[@]}"
+do
+    # --line-width 0 防止fasta换行
+    seqkit subseq \
+        < $GENOME \
+        --update-faidx \
+        --line-width 0 \
+        --bed $DATA_DIR/sized/$accession.sized.narrowPeak |
+    sed '2~2y/acgtn/ACGTN/' |
+    sed -nr 'N;s/\n/\t/;p' |
+    grep -vE "\sN|[ACGT]N" |
+    sed -r 's/\t/\n/'\
+        > $DATA_DIR/positive/$accession.positive
+done
+
+# title "计算最近交叉peak距离|生成训练数据集的DNA"
+# mkdir -p $DATA_DIR/train_data/DNA_data
+# for ((i=0;i<${#accessions[@]};++i))
 # do
-#     bedClip \
+#     accession="${accessions[$i]}"
+#     dis_files=()
+#     for accession2 in "${accessions[@]}"
+#     do
+#         if [ "${accession2}" != "${accession}" ]
+#         then
+#             bedtools closest -d \
+#                 -a <(
+#                     awk '
+#                         {
+#                             printf("%s\t%s\t%s\n", $1, $4, $4 + 1)
+#                         }
+#                     ' $DATA_DIR/sized/${accession}.sized.narrowPeak
+#                 ) \
+#                 -b <(
+#                     awk '
+#                         {
+#                             printf("%s\t%s\t%s\n", $1, $4, $4 + 1)
+#                         }
+#                     ' $DATA_DIR/sized/${accession2}.sized.narrowPeak
+#                 ) |
+#             cut -f7 \
+#                 > $DATA_DIR/train_data/DNA_data/${accession}_${accession2}
+#         else
+#             awk '{print 0}' \
+#                 $DATA_DIR/sized/${accession}.sized.narrowPeak \
+#                 > $DATA_DIR/train_data/DNA_data/${accession}_${accession2}
+#         fi
+#         dis_files+=($DATA_DIR/train_data/DNA_data/${accession}_${accession2})
+#     done
+#     paste -d, \
 #         <(
-#             awk -v seq_len=$seq_len '
-#                 {
-#                     start = $2
-#                     end = $3
-#                     summit = $10
-#                     new_start = start + summit - int(seq_len / (end - start) * summit)
-#                     new_end = new_start + seq_len
-#                     printf("%s\t%d\t%d\n", $1, new_start, new_end)
-#                 }
-#             ' $DATA_DIR/filtered/$accession.filtered.narrowPeak
+#             sed -nr "2~2{s/^/$i,/;p}" \
+#                 "$DATA_DIR/positive/${accessions[$i]}.positive"
 #         ) \
-#         $GENOME_SIZE \
-#         $DATA_DIR/sized/$accession.sized.narrowPeak
-# done
-
-# title "提取结合位点序列"
-# mkdir -p $DATA_DIR/positive
-# for accession in "${accessions[@]}"
-# do
-#     # --line-width 0 防止fasta换行
-#     seqkit subseq \
-#         < $GENOME \
-#         --update-faidx \
-#         --line-width 0 \
-#         --bed $DATA_DIR/sized/$accession.sized.narrowPeak |
-#     sed '2~2y/acgtn/ACGTN/' |
-#     sed -nr 'N;s/\n/\t/;p' |
-#     grep -vE "\sN|[ACGT]N" |
-#     sed -r 's/\t/\n/'\
-#         > $DATA_DIR/positive/$accession.positive
-# done
-
-# title "产生不结合位点序列"
-# mkdir -p $DATA_DIR/negative
-# for accession in "${accessions[@]}"
-# do
-#     # -line 999999999 防止fasta换行
-#     fasta-shuffle-letters \
-#         -kmer 1 \
-#         -dna \
-#         -line 999999999 \
-#         -seed 63036 \
-#         $DATA_DIR/positive/$accession.positive \
-#         $DATA_DIR/negative/$accession.negative
+#         "${dis_files[@]}" \
+#         > "$DATA_DIR/train_data/DNA_data/${accessions[$i]}.csv"
+#     rm "${dis_files[@]}"
 # done
 
 # title "生成训练数据集的蛋白"
@@ -182,20 +214,6 @@ done
 #     printf "%d\n" $zinc_num >> $DATA_DIR/train_data/protein_data.csv
 # done
 
-# title "生成训练数据集的DNA"
-# mkdir -p $DATA_DIR/train_data/DNA_data
-# for ((i=0;i<${#accessions[@]};++i))
-# do
-#     (
-#         sed -nr '2~2{s/$/,1.0/;p}' \
-#             "$DATA_DIR/positive/${accessions[$i]}.positive"
-#         sed -nr '2~2{s/$/,0.0/;p}' \
-#             "$DATA_DIR/negative/${accessions[$i]}.negative"
-#     ) |
-#     sed -r "s/^/$i,/" \
-#         > "$DATA_DIR/train_data/DNA_data/${accessions[$i]}.csv"
-# done
-
 # title "生成小训练数据集"
 # get_seeded_random()
 # {
@@ -215,21 +233,21 @@ done
 #         > $DATA_DIR/small_train_data/DNA_data/${accession}.csv
 # done
 
-title "生成极小程序测试用训练数据集"
-get_seeded_random()
-{
-    seed="$1"
-    openssl enc -aes-256-ctr -pass pass:"$seed" -nosalt \
-    </dev/zero 2>/dev/null
-}
+# title "生成极小程序测试用训练数据集"
+# get_seeded_random()
+# {
+#     seed="$1"
+#     openssl enc -aes-256-ctr -pass pass:"$seed" -nosalt \
+#     </dev/zero 2>/dev/null
+# }
 
-mkdir -p $DATA_DIR/train_data_for_test/DNA_data
-cp $DATA_DIR/train_data/protein_data.csv $DATA_DIR/train_data_for_test/protein_data.csv
-line_num_for_test=10
-for accession in "${accessions[@]}"
-do
-    shuf -n $line_num_for_test \
-        --random-source=<(get_seeded_random 63036) \
-        $DATA_DIR/train_data/DNA_data/${accession}.csv \
-        > $DATA_DIR/train_data_for_test/DNA_data/${accession}.csv
-done
+# mkdir -p $DATA_DIR/train_data_for_test/DNA_data
+# cp $DATA_DIR/train_data/protein_data.csv $DATA_DIR/train_data_for_test/protein_data.csv
+# line_num_for_test=10
+# for accession in "${accessions[@]}"
+# do
+#     shuf -n $line_num_for_test \
+#         --random-source=<(get_seeded_random 63036) \
+#         $DATA_DIR/train_data/DNA_data/${accession}.csv \
+#         > $DATA_DIR/train_data_for_test/DNA_data/${accession}.csv
+# done

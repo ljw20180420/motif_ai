@@ -87,7 +87,7 @@ elif args.command == "test":
     ds = load_dataset(
         "csv",
         data_dir=args.data_dir / "DNA_data",
-        column_names=["index", "dna", "bind"],
+        column_names=["index", "dna"],
     )
     ds = train_validation_test_split(
         ds, args.validation_ratio, args.test_ratio, args.seed
@@ -115,23 +115,28 @@ elif args.command == "inference":
         column_names=["index", "dna", "bind"],
     )["train"]
     from bind_transformer.inference import inference
+    from datasets import Dataset
+    import sys
 
-    with open(3, "wb") as fd:
-        ds.to_csv(fd)
-
-    for output in inference(
-        ds,
-        ds_protein["protein"],
-        ds_protein["second"],
-        ds_protein["zinc_num"],
-        args.pipeline_output_dir,
-        args.device,
-        logger,
-        args.batch_size,
-        args.dna_length,
-        args.max_num_tokens,
+    header = True
+    for input, output in zip(
+        ds.iter(args.batch_size),
+        inference(
+            ds,
+            ds_protein["protein"],
+            ds_protein["second"],
+            ds_protein["zinc_num"],
+            args.pipeline_output_dir,
+            args.device,
+            logger,
+            args.batch_size,
+            args.dna_length,
+            args.max_num_tokens,
+        ),
     ):
-        print("\n".join([str(int(bind)) for bind in output]))
+        input["bind"] = output
+        Dataset.from_dict(input).to_csv(sys.stdout, header=header)
+        header = False
 
 elif args.command == "app":
     from bind_transformer.app import app
