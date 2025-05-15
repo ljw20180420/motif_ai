@@ -30,7 +30,7 @@ from io import StringIO
 import pandas as pd
 import numpy as np
 from datasets import load_dataset
-from bind_transformer.load_data import train_validation_test_split, data_collector
+from bind_transformer.load_data import DataCollator, train_validation_test_split
 
 
 ds_protein = load_dataset(
@@ -38,12 +38,21 @@ ds_protein = load_dataset(
     data_files=(args.data_dir / "protein_data.csv").as_posix(),
     column_names=["accession", "protein", "second", "zinc_num"],
 )["train"]
-ds = load_dataset(
-    "csv",
-    data_dir=args.data_dir / "DNA_data",
-    column_names=["index", "dna", "bind"],
-)
+
+ds = load_dataset("json", data_dir=args.data_dir / "DNA_data")
 ds = train_validation_test_split(ds, args.validation_ratio, args.test_ratio, args.seed)
+data_collater = DataCollator(
+    ds_protein["protein"],
+    ds_protein["second"],
+    ds_protein["zinc_num"],
+    args.minimal_unbind_summit_distance,
+    0.0,  # select negative sample randomly by set select_worst_neg_loss_ratio=0.0
+    None,
+    args.dna_length,
+    args.max_num_tokens,
+    args.seed,
+)
+ds = ds.map(data_collater.neg_map, batched=True, remove_columns=["rn", "distance"])
 
 # 测试DeepZF
 logger.warning("test DeepZF")
@@ -52,7 +61,7 @@ logger.warning("test DeepZF")
 def bench_DeepZF(ds, shear_DNA_len):
     dfs = []
     for accession in tqdm(ds_protein["accession"]):
-        with open(f"{os.environ['DATA_DIR']}/DeepZF/tempfile", "w") as fd:
+        with open("DeepZF/zinc_finger_protein_motifs/tempfile", "w") as fd:
             for i, example in enumerate(ds):
                 if ds_protein["accession"][example["index"]] != accession:
                     continue
@@ -68,8 +77,8 @@ def bench_DeepZF(ds, shear_DNA_len):
                 "--max-strand",
                 "--max-stored-scores",
                 "99999999",
-                f"{os.environ['DATA_DIR']}/DeepZF/motifs/{accession}.meme",
-                f"{os.environ['DATA_DIR']}/DeepZF/tempfile",
+                f"DeepZF/zinc_finger_protein_motifs/motifs/{accession}.meme",
+                "DeepZF/zinc_finger_protein_motifs/tempfile",
             ],
             capture_output=True,
         )
@@ -91,7 +100,7 @@ def bench_DeepZF(ds, shear_DNA_len):
                 ],
             ).loc[:, ["index", "pValue"]]
         )
-    os.remove(f"{os.environ['DATA_DIR']}/DeepZF/tempfile")
+    os.remove("DeepZF/zinc_finger_protein_motifs/tempfile")
     return pd.concat(dfs).sort_values("index")
 
 

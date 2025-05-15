@@ -11,9 +11,10 @@ from typing import List
 from torch import Tensor
 from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
 import torch.nn.functional as F
+import numpy as np
 from .model import BindTransformerModel
 from .pipeline import BindTransformerPipeline
-from .load_data import data_collector
+from .load_data import DataCollator
 from .metric import select_threshold, hard_metric
 from .tokenizers import (
     DNA_Tokenizer,
@@ -34,7 +35,9 @@ def test(
     logger: Logger,
     batch_size: int,
     dna_length: int,
+    minimal_unbind_summit_distance: int,
     max_num_tokens: int,
+    seed: int,
 ) -> None:
     logger.info("load model")
     bind_transformer_model = BindTransformerModel.from_pretrained(
@@ -44,20 +47,23 @@ def test(
     bind_transformer_model.__module__ = bind_transformer_model.__module__.split(".")[-1]
 
     logger.info("select threshold")
+    data_collator = DataCollator(
+        proteins,
+        seconds,
+        zinc_nums,
+        minimal_unbind_summit_distance,
+        0.0,  # select negative sample randomly by set select_worst_neg_loss_ratio=0.0
+        None,
+        dna_length,
+        max_num_tokens,
+        seed,
+    )
     eval_dataloader = DataLoader(
         dataset=ds["validation"],
         batch_size=batch_size,
-        collate_fn=lambda examples: data_collector(
-            examples,
-            proteins,
-            seconds,
-            zinc_nums,
-            DNA_Tokenizer(dna_length),
-            Protein_Bert_Tokenizer(max_num_tokens),
-            Second_Tokenizer(),
-        ),
+        collate_fn=data_collator,
     )
-    bind_probabilities = []
+    bind_probabilities, bind = [], []
     for batch in tqdm(eval_dataloader):
         bind_probabilities.append(
             F.sigmoid(
@@ -68,8 +74,9 @@ def test(
                 )["logit"]
             )
         )
+        bind.append(batch["bind"])
     bind_probabilities = torch.cat(bind_probabilities)
-    bind = torch.cat([batch["bind"] for batch in eval_dataloader])
+    bind = torch.cat(bind)
     best_thres = select_threshold(bind_probabilities, bind)
 
     logger.info("setup pipeline")
@@ -79,15 +86,7 @@ def test(
     test_dataloader = DataLoader(
         dataset=ds["test"],
         batch_size=batch_size,
-        collate_fn=lambda examples: data_collector(
-            examples,
-            proteins,
-            seconds,
-            zinc_nums,
-            DNA_Tokenizer(dna_length),
-            Protein_Bert_Tokenizer(max_num_tokens),
-            Second_Tokenizer(),
-        ),
+        collate_fn=data_collator,
     )
     # test only one batch
     for batch in tqdm(test_dataloader):

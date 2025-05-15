@@ -32,14 +32,12 @@ ds_protein = load_dataset(
 )["train"]
 
 if args.command == "train":
-    ds = load_dataset(
-        "csv",
-        data_dir=args.data_dir / "DNA_data",
-        column_names=["index", "dna", "bind"],
-    )
+    ds = load_dataset("json", data_dir=args.data_dir / "DNA_data")
+
     ds = train_validation_test_split(
         ds, args.validation_ratio, args.test_ratio, args.seed
     )
+
     from bind_transformer.train import train
 
     train(
@@ -54,6 +52,8 @@ if args.command == "train":
         logger,
         args.batch_size,
         args.dna_length,
+        args.minimal_unbind_summit_distance,
+        args.select_worst_neg_loss_ratio,
         args.optimizer,
         args.learning_rate,
         args.beta1,
@@ -85,9 +85,8 @@ if args.command == "train":
 
 elif args.command == "test":
     ds = load_dataset(
-        "csv",
+        "json",
         data_dir=args.data_dir / "DNA_data",
-        column_names=["index", "dna"],
     )
     ds = train_validation_test_split(
         ds, args.validation_ratio, args.test_ratio, args.seed
@@ -105,14 +104,15 @@ elif args.command == "test":
         logger,
         args.batch_size,
         args.dna_length,
+        args.minimal_unbind_summit_distance,
         args.max_num_tokens,
+        args.seed,
     )
 
 elif args.command == "inference":
     ds = load_dataset(
         "csv",
         data_dir=args.inference_data_dir / "DNA_data",
-        column_names=["index", "dna", "bind"],
     )["train"]
     from bind_transformer.inference import inference
     from datasets import Dataset
@@ -131,11 +131,13 @@ elif args.command == "inference":
             logger,
             args.batch_size,
             args.dna_length,
+            args.minimal_unbind_summit_distance,
             args.max_num_tokens,
+            args.seed,
         ),
     ):
         input["bind"] = output
-        Dataset.from_dict(input).to_csv(sys.stdout, header=header)
+        Dataset.from_dict(input).to_csv(sys.stdout.buffer, header=header)
         header = False
 
 elif args.command == "app":

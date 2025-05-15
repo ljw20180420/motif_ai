@@ -106,6 +106,18 @@ def get_config(config_files):
     parser_data_loader.add_argument(
         "--batch_size", type=int, required=True, help="Batch size."
     )
+    parser_data_loader.add_argument(
+        "--minimal_unbind_summit_distance",
+        type=int,
+        required=True,
+        help="Minimal distance between summit such that the protein is considered not bind to the target peak.",
+    )
+    parser_data_loader.add_argument(
+        "--select_worst_neg_loss_ratio",
+        type=float,
+        required=True,
+        help="The ratio of the negative examples select with the worest loss.",
+    )
 
     # optimizer parameters
     parser_optimizer = parser.add_argument_group(
@@ -238,7 +250,7 @@ def get_config(config_files):
         "--pos_weight",
         type=float,
         required=True,
-        help="Weight for positive samples (https://www.tensorflow.org/tutorials/structured_data/imbalanced_data). If set to 0, then pos_weight = neg / pos. pos is the number of positive sample. neg is the number of negative sample.",
+        help="Weight for positive samples (https://www.tensorflow.org/tutorials/structured_data/imbalanced_data).",
     )
     parser_roformer.add_argument(
         "--reg_l1",

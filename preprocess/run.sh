@@ -108,46 +108,48 @@ done
 #         > $DATA_DIR/filtered/$accession.filtered.narrowPeak
 # done
 
-title "调整peak大小|按照summit位置排序"
-mkdir -p $DATA_DIR/sized
-seq_len=256
-for accession in "${accessions[@]}"
-do
-    bedClip \
-        <(
-            awk -v seq_len=$seq_len '
-                {
-                    start = $2
-                    end = $3
-                    summit = $10
-                    new_start = start + summit - int(seq_len / (end - start) * summit)
-                    new_end = new_start + seq_len
-                    new_summit = start + simmit
-                    printf("%s\t%d\t%d\t%d\n", $1, new_start, new_end, new_summit)
-                }
-            ' $DATA_DIR/filtered/$accession.filtered.narrowPeak |
-            sort -k1,1 -k4,4n
-        ) \
-        $GENOME_SIZE \
-        $DATA_DIR/sized/$accession.sized.narrowPeak
-done
+# title "调整peak大小|按照summit位置排序"
+# mkdir -p $DATA_DIR/sized
+# seq_len=256
+# for accession in "${accessions[@]}"
+# do
+#     bedClip \
+#         <(
+#             awk -v seq_len=$seq_len '
+#                 {
+#                     start = $2
+#                     end = $3
+#                     summit = $10
+#                     new_start = start + summit - int(seq_len / (end - start) * summit)
+#                     new_end = new_start + seq_len
+#                     new_summit = start + simmit
+#                     printf("%s\t%d\t%d\t%d\n", $1, new_start, new_end, new_summit)
+#                 }
+#             ' $DATA_DIR/filtered/$accession.filtered.narrowPeak |
+#             sort -k1,1 -k4,4n
+#         ) \
+#         $GENOME_SIZE \
+#         $DATA_DIR/sized/$accession.sized.narrowPeak
+# done
 
-title "提取结合位点序列"
-mkdir -p $DATA_DIR/positive
-for accession in "${accessions[@]}"
-do
-    # --line-width 0 防止fasta换行
-    seqkit subseq \
-        < $GENOME \
-        --update-faidx \
-        --line-width 0 \
-        --bed $DATA_DIR/sized/$accession.sized.narrowPeak |
-    sed '2~2y/acgtn/ACGTN/' |
-    sed -nr 'N;s/\n/\t/;p' |
-    grep -vE "\sN|[ACGT]N" |
-    sed -r 's/\t/\n/'\
-        > $DATA_DIR/positive/$accession.positive
-done
+# title "提取结合位点序列"
+# mkdir -p $DATA_DIR/positive
+# for accession in "${accessions[@]}"
+# do
+#     # --line-width 0 防止fasta换行
+#     paste \
+#         $DATA_DIR/sized/$accession.sized.narrowPeak \
+#         <(
+#             seqkit subseq \
+#                 < $GENOME \
+#                 --update-faidx \
+#                 --line-width 0 \
+#                 --bed $DATA_DIR/sized/$accession.sized.narrowPeak |
+#             sed -nr '2~2{y/acgtn/ACGTN/; p}'
+#         ) |
+#     grep -vE "\sN|[ACGT]N" \
+#         > $DATA_DIR/positive/$accession.positive
+# done
 
 # title "计算最近交叉peak距离|生成训练数据集的DNA"
 # mkdir -p $DATA_DIR/train_data/DNA_data
@@ -159,34 +161,37 @@ done
 #     do
 #         if [ "${accession2}" != "${accession}" ]
 #         then
-#             bedtools closest -d \
+#             bedtools closest -d -t first \
 #                 -a <(
 #                     awk '
 #                         {
 #                             printf("%s\t%s\t%s\n", $1, $4, $4 + 1)
 #                         }
-#                     ' $DATA_DIR/sized/${accession}.sized.narrowPeak
+#                     ' $DATA_DIR/positive/${accession}.positive
 #                 ) \
 #                 -b <(
 #                     awk '
 #                         {
 #                             printf("%s\t%s\t%s\n", $1, $4, $4 + 1)
 #                         }
-#                     ' $DATA_DIR/sized/${accession2}.sized.narrowPeak
+#                     ' $DATA_DIR/positive/${accession2}.positive
 #                 ) |
 #             cut -f7 \
 #                 > $DATA_DIR/train_data/DNA_data/${accession}_${accession2}
 #         else
 #             awk '{print 0}' \
-#                 $DATA_DIR/sized/${accession}.sized.narrowPeak \
+#                 $DATA_DIR/positive/${accession}.positive \
 #                 > $DATA_DIR/train_data/DNA_data/${accession}_${accession2}
 #         fi
 #         dis_files+=($DATA_DIR/train_data/DNA_data/${accession}_${accession2})
 #     done
 #     paste -d, \
 #         <(
-#             sed -nr "2~2{s/^/$i,/;p}" \
-#                 "$DATA_DIR/positive/${accessions[$i]}.positive"
+#             awk -v idx=$i '
+#                 {
+#                     printf("%d,%s\n", idx, $5)
+#                 }
+#             ' "$DATA_DIR/positive/${accessions[$i]}.positive"
 #         ) \
 #         "${dis_files[@]}" \
 #         > "$DATA_DIR/train_data/DNA_data/${accessions[$i]}.csv"
@@ -214,40 +219,71 @@ done
 #     printf "%d\n" $zinc_num >> $DATA_DIR/train_data/protein_data.csv
 # done
 
-# title "生成小训练数据集"
-# get_seeded_random()
-# {
-#     seed="$1"
-#     openssl enc -aes-256-ctr -pass pass:"$seed" -nosalt \
-#     </dev/zero 2>/dev/null
-# }
+title "生成小训练数据集"
+get_seeded_random()
+{
+    seed="$1"
+    openssl enc -aes-256-ctr -pass pass:"$seed" -nosalt \
+    </dev/zero 2>/dev/null
+}
+
+to_json()
+{
+    awk -F "," -v start_rn=$1 '
+        {
+            printf("{\"rn\": %d, \"index\": %d, \"dna\": \"%s\", \"distance\": [%d", start_rn + NR - 1, $1, $2, $3)
+            for (i=4; i<=NF; ++i) {
+                printf(",%d", $i)
+            }
+            printf("]}\n")
+        }
+    '
+}
 
 # mkdir -p $DATA_DIR/small_train_data/DNA_data
 # cp $DATA_DIR/train_data/protein_data.csv $DATA_DIR/small_train_data/protein_data.csv
 # small_line_num=3000
+# start_rn=0
 # for accession in "${accessions[@]}"
 # do
 #     shuf -n $small_line_num \
 #         --random-source=<(get_seeded_random 63036) \
-#         $DATA_DIR/train_data/DNA_data/${accession}.csv \
-#         > $DATA_DIR/small_train_data/DNA_data/${accession}.csv
+#         $DATA_DIR/train_data/DNA_data/${accession}.csv |
+#     to_json $start_rn \
+#         > $DATA_DIR/small_train_data/DNA_data/${accession}.json
+#     total_line_num=$(wc -l < $DATA_DIR/train_data/DNA_data/${accession}.csv)
+#     line_num=$(( small_line_num > total_line_num ? total_line_num : small_line_num ))
+#     start_rn=$(( start_rn + line_num ))
 # done
 
 # title "生成极小程序测试用训练数据集"
-# get_seeded_random()
-# {
-#     seed="$1"
-#     openssl enc -aes-256-ctr -pass pass:"$seed" -nosalt \
-#     </dev/zero 2>/dev/null
-# }
-
 # mkdir -p $DATA_DIR/train_data_for_test/DNA_data
 # cp $DATA_DIR/train_data/protein_data.csv $DATA_DIR/train_data_for_test/protein_data.csv
 # line_num_for_test=10
+# start_rn=0
 # for accession in "${accessions[@]}"
 # do
 #     shuf -n $line_num_for_test \
 #         --random-source=<(get_seeded_random 63036) \
-#         $DATA_DIR/train_data/DNA_data/${accession}.csv \
-#         > $DATA_DIR/train_data_for_test/DNA_data/${accession}.csv
+#         $DATA_DIR/train_data/DNA_data/${accession}.csv |
+#     to_json $start_rn \
+#         > $DATA_DIR/train_data_for_test/DNA_data/${accession}.json
+#     total_line_num=$(wc -l < $DATA_DIR/train_data/DNA_data/${accession}.csv)
+#     line_num=$(( line_num_for_test > total_line_num ? total_line_num : line_num_for_test ))
+#     start_rn=$(( start_rn + line_num ))
 # done
+
+title "生成极小程序测试用推理数据集"
+mkdir -p $DATA_DIR/inference_data_for_test/DNA_data
+cp $DATA_DIR/train_data/protein_data.csv $DATA_DIR/inference_data_for_test/protein_data.csv
+line_num_for_test=10
+for accession in "${accessions[@]}"
+do
+    printf "index,dna\n" \
+        > $DATA_DIR/inference_data_for_test/DNA_data/${accession}.csv
+    shuf -n $line_num_for_test \
+        --random-source=<(get_seeded_random 63036) \
+        $DATA_DIR/train_data/DNA_data/${accession}.csv |
+    cut -d, -f1-2 \
+        >> $DATA_DIR/inference_data_for_test/DNA_data/${accession}.csv
+done

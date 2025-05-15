@@ -15,8 +15,8 @@ do
 done
 
 # 准备DeepZF输入文件
-mkdir -p $DATA_DIR/DeepZF
-printf "label,seq,res_12,groups\n" > $DATA_DIR/DeepZF/DeepZF_input.csv
+mkdir -p DeepZF/zinc_finger_protein_motifs
+printf "label,seq,res_12,groups\n" > DeepZF/zinc_finger_protein_motifs/DeepZF_input.csv
 ext=40
 for accession in "${accessions[@]}"
 do
@@ -35,30 +35,30 @@ do
         }
     ' \
         ../preprocess/protein.tsv \
-        >> $DATA_DIR/DeepZF/DeepZF_input.csv
+        >> DeepZF/zinc_finger_protein_motifs/DeepZF_input.csv
 done
 
 # 计算锌指结合概率
-DeepZF/.conda/bin/python DeepZF/BindZF_predictor/code/main_bindzfpredictor_predict.py -in $DATA_DIR/DeepZF/DeepZF_input.csv -out $DATA_DIR/DeepZF/BindZF_output.txt -m DeepZF/BindZF_predictor/code/model.p -e DeepZF/BindZF_predictor/code/encoder.p -r 1
+DeepZF/.conda/bin/python DeepZF/BindZF_predictor/code/main_bindzfpredictor_predict.py -in DeepZF/zinc_finger_protein_motifs/DeepZF_input.csv -out DeepZF/zinc_finger_protein_motifs/BindZF_output.txt -m DeepZF/BindZF_predictor/code/model.p -e DeepZF/BindZF_predictor/code/encoder.p -r 1
 
 # 计算锌指PWM
-DeepZF/.conda/bin/python DeepZF/PWMpredictor/code/main_PWMpredictor.py -in $DATA_DIR/DeepZF/DeepZF_input.csv -out $DATA_DIR/DeepZF/PWM_output.txt -m DeepZF/PWMpredictor/code/transfer_model100.h5
+DeepZF/.conda/bin/python DeepZF/PWMpredictor/code/main_PWMpredictor.py -in DeepZF/zinc_finger_protein_motifs/DeepZF_input.csv -out DeepZF/zinc_finger_protein_motifs/PWM_output.txt -m DeepZF/PWMpredictor/code/transfer_model100.h5
 
 # 合并结果
 paste \
     <(
-        tail -n+2 $DATA_DIR/DeepZF/DeepZF_input.csv |
+        tail -n+2 DeepZF/zinc_finger_protein_motifs/DeepZF_input.csv |
         cut -d',' -f4
     ) \
-    $DATA_DIR/DeepZF/BindZF_output.txt \
+    DeepZF/zinc_finger_protein_motifs/BindZF_output.txt \
     <(
         sed -nr 'N;N;N;N;N;N;N;N;N;N;N;s/\n/\t/g;p' \
-            $DATA_DIR/DeepZF/PWM_output.txt
+            DeepZF/zinc_finger_protein_motifs/PWM_output.txt
     ) \
-    > $DATA_DIR/DeepZF/merge_output.tsv
+    > DeepZF/zinc_finger_protein_motifs/merge_output.tsv
 
 # 产生meme基序
-mkdir -p $DATA_DIR/DeepZF/motifs
+mkdir -p DeepZF/zinc_finger_protein_motifs/motifs
 thres=0.5
 for accession in "${accessions[@]}"
 do
@@ -68,11 +68,11 @@ do
                 printf("%s\t%s\t%s\t%s\n", $(i * 4 + 3), $(i * 4 + 4), $(i * 4 + 5), $(i * 4 + 6))
             }
         }
-    ' $DATA_DIR/DeepZF/merge_output.tsv |
+    ' DeepZF/zinc_finger_protein_motifs/merge_output.tsv |
     matrix2meme -dna |
     sed -r "s/^MOTIF .+ .+$/MOTIF $accession/" \
-        > $DATA_DIR/DeepZF/motifs/$accession.meme
-    if [ "$(wc -l < $DATA_DIR/DeepZF/motifs/$accession.meme)" -eq 0 ]
+        > DeepZF/zinc_finger_protein_motifs/motifs/$accession.meme
+    if [ "$(wc -l < DeepZF/zinc_finger_protein_motifs/motifs/$accession.meme)" -eq 0 ]
     then
         awk -v accession=$accession '
             $1 == accession && $2 > max_bind {
@@ -85,9 +85,9 @@ do
                     printf("%s\t%s\t%s\t%s\n", arr[i * 4 + 3], arr[i * 4 + 4], arr[i * 4 + 5], arr[i * 4 + 6])
                 }
             }
-        ' $DATA_DIR/DeepZF/merge_output.tsv |
+        ' DeepZF/zinc_finger_protein_motifs/merge_output.tsv |
         matrix2meme -dna |
         sed -r "s/^MOTIF .+ .+$/MOTIF $accession/" \
-            > $DATA_DIR/DeepZF/motifs/$accession.meme
+            > DeepZF/zinc_finger_protein_motifs/motifs/$accession.meme
     fi
 done

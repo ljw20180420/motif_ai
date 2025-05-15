@@ -194,6 +194,7 @@ class BindTransformerModel(PreTrainedModel):
         second_ids: torch.Tensor,
         dna_ids: torch.Tensor,
         bind: torch.Tensor = None,
+        **kwargs,
     ):
         """
         蛋白质和DNA的mask token都是0。

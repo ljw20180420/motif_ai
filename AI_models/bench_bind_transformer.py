@@ -22,7 +22,7 @@ logger = get_logger(args.log_level)
 # 读取数据
 logger.warning("load data")
 from datasets import load_dataset
-from bind_transformer.load_data import train_validation_test_split
+from bind_transformer.load_data import DataCollator, train_validation_test_split
 
 ds_protein = load_dataset(
     "csv",
@@ -30,13 +30,22 @@ ds_protein = load_dataset(
     column_names=["accession", "protein", "second", "zinc_num"],
 )["train"]
 
-ds = load_dataset(
-    "csv",
-    data_dir=args.data_dir / "DNA_data",
-    column_names=["index", "dna", "bind"],
-)
+ds = load_dataset("json", data_dir=args.data_dir / "DNA_data")
 ds = train_validation_test_split(ds, args.validation_ratio, args.test_ratio, args.seed)
-
+data_collater = DataCollator(
+    ds_protein["protein"],
+    ds_protein["second"],
+    ds_protein["zinc_num"],
+    args.minimal_unbind_summit_distance,
+    0.0,  # select negative sample randomly by set select_worst_neg_loss_ratio=0.0
+    None,
+    args.dna_length,
+    args.max_num_tokens,
+    args.seed,
+)
+ds = ds["test"].map(
+    data_collater.neg_map, batched=True, remove_columns=["rn", "distance"]
+)
 
 # 测试集测试
 from bind_transformer.inference import inference
@@ -50,7 +59,7 @@ def test_set_test(ds: Dataset, ds_protein: Dataset) -> None:
             [
                 output
                 for output in inference(
-                    ds["test"],
+                    ds.select_columns(["index", "dna"]),
                     ds_protein["protein"],
                     ds_protein["second"],
                     ds_protein["zinc_num"],
@@ -59,11 +68,13 @@ def test_set_test(ds: Dataset, ds_protein: Dataset) -> None:
                     logger,
                     args.batch_size,
                     args.dna_length,
+                    args.minimal_unbind_summit_distance,
                     args.max_num_tokens,
+                    args.seed,
                 )
             ]
         ),
-        ds["test"]["bind"],
+        ds["bind"],
     )
 
     with open("bind_transformer/bench.log", "a") as fd:
@@ -94,7 +105,7 @@ def random_seq_test(ds: Dataset, ds_protein: Dataset) -> None:
             [
                 output
                 for output in inference(
-                    ds["test"],
+                    ds.select_columns(["index", "dna"]),
                     proteins,
                     seconds,
                     ds_protein["zinc_num"],
@@ -103,11 +114,13 @@ def random_seq_test(ds: Dataset, ds_protein: Dataset) -> None:
                     logger,
                     args.batch_size,
                     args.dna_length,
+                    args.minimal_unbind_summit_distance,
                     args.max_num_tokens,
+                    args.seed,
                 )
             ]
         ),
-        ds["test"]["bind"],
+        ds["bind"],
     )
 
     with open("bind_transformer/bench.log", "a") as fd:
@@ -122,7 +135,7 @@ def random_permute_test(ds: Dataset, ds_protein: Dataset) -> None:
             [
                 output
                 for output in inference(
-                    ds["test"],
+                    ds.select_columns(["index", "dna"]),
                     ds_protein_shuffle["protein"],
                     ds_protein_shuffle["second"],
                     ds_protein_shuffle["zinc_num"],
@@ -131,11 +144,13 @@ def random_permute_test(ds: Dataset, ds_protein: Dataset) -> None:
                     logger,
                     args.batch_size,
                     args.dna_length,
+                    args.minimal_unbind_summit_distance,
                     args.max_num_tokens,
+                    args.seed,
                 )
             ]
         ),
-        ds["test"]["bind"],
+        ds["bind"],
     )
 
     with open("bind_transformer/bench.log", "a") as fd:
@@ -181,7 +196,7 @@ def mutate_zinc_finger_test(ds: Dataset, ds_protein: Dataset) -> None:
             [
                 output
                 for output in inference(
-                    ds["test"],
+                    ds.select_columns(["index", "dna"]),
                     proteins,
                     seconds,
                     [0] * len(proteins),
@@ -190,11 +205,13 @@ def mutate_zinc_finger_test(ds: Dataset, ds_protein: Dataset) -> None:
                     logger,
                     args.batch_size,
                     args.dna_length,
+                    args.minimal_unbind_summit_distance,
                     args.max_num_tokens,
+                    args.seed,
                 )
             ]
         ),
-        ds["test"]["bind"],
+        ds["bind"],
     )
 
     with open("bind_transformer/bench.log", "a") as fd:
