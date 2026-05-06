@@ -8,7 +8,7 @@ import numpy as np
 import optuna
 import pandas as pd
 from common_ai.metric import MyMetricAbstract
-from sklearn.metrics import average_precision_score
+from sklearn.metrics import average_precision_score, log_loss
 
 
 class F1Metric(MyMetricAbstract):
@@ -272,6 +272,32 @@ class BrierScoreMetric(MyMetricAbstract):
         pass
 
 
+class MeanLogLikelihoodMetric(MyMetricAbstract):
+    def __init__(self):
+        """LikelihoodMetric arguments.
+
+        Args:
+        """
+        self.probas = []
+        self.binds = []
+
+    def step(self, df: pd.DataFrame, examples: list, batch: dict):
+        self.probas.append(df["proba"].to_numpy())
+        self.binds.append(batch["label"]["bind"].cpu().numpy())
+
+    def epoch(self):
+        results = -log_loss(
+            y_true=np.concatenate(self.binds), y_pred=np.concatenate(self.probas)
+        )
+        self.probas = []
+        self.binds = []
+        return results
+
+    @classmethod
+    def hpo(cls, trial: optuna.Trial, cfg: jsonargparse.Namespace) -> None:
+        pass
+
+
 # Download all metrics from huggingface.
 if __name__ == "__main__":
     import os
@@ -293,7 +319,8 @@ if __name__ == "__main__":
         "roc_auc",
         "brier_score",
     ]:
-        with fs.open(f"spaces/evaluate-metric/{metric}/{metric}.py", "rb") as rd, open(
-            f"metric/{metric}.py", "wb"
-        ) as wd:
+        with (
+            fs.open(f"spaces/evaluate-metric/{metric}/{metric}.py", "rb") as rd,
+            open(f"metric/{metric}.py", "wb") as wd,
+        ):
             wd.write(rd.read())

@@ -113,6 +113,7 @@ metrics = [
     "RocAucMetric",
     "PrAucMetric",
     "BrierScoreMetric",
+    "MeanLogLikelihoodMetric",
 ]
 output_dir = pathlib.Path("/home/ljw/sdc1/COP_results/formal/default/logs")
 

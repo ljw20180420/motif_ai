@@ -8,12 +8,10 @@
 
 # TODO
 
-- 更新文档
 - Review the hpo result on 107 machine
 - Try to train for 3000 for COP
 - Upload model to huggingface, deploy space for both versions
 - README
-- Add Likelihood metric.
 - Use PRROC and AUCROC to choose a good threshold for COP to show that COP is good. (https://stats.stackexchange.com/questions/354704/what-does-it-mean-if-the-roc-auc-is-high-and-the-average-precision-is-low>
 - 增加DNA或蛋白长度
 - 发表benchmark

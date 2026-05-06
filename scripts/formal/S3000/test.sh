@@ -44,7 +44,8 @@ do
         MatthewsCorrelationMetric \
         RocAucMetric \
         PrAucMetric \
-        BrierScoreMetric
+        BrierScoreMetric \
+        MeanLogLikelihoodMetric
     do
         ./run.py test --config ${test_config} --checkpoints_path ${checkpoints_path} --logs_path ${logs_path} --target ${target}
     done

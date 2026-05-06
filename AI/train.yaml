@@ -34,5 +34,6 @@ metric:
   - metric/RocAucMetric.yaml
   - metric/PrAucMetric.yaml
   - metric/BrierScoreMetric.yaml
+  - metric/MeanLogLikelihoodMetric.yaml
 
 # model:
