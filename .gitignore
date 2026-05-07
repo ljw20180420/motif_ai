@@ -10,6 +10,7 @@
 /AI/dataset/balanced_*_data
 /AI/dataset/inference_data.csv
 /AI/dataset/extra/data
+/AI/dataset/assess_peak_width
 /AI/app_space.yaml
 /DeepZF/Data
 /DeepZF/Results

@@ -4,7 +4,8 @@
 cd $( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # 使用严格模式
-set -euo pipefail
+# set -euo pipefail
+set -eu
 
 title() {
     printf "\n----------\n%s\n----------\n" "$1" >&2
@@ -19,6 +20,7 @@ download_mm9() {
     wget https://hgdownload.cse.ucsc.edu/goldenpath/mm9/bigZips/mm9.chrom.sizes
     wget https://hgdownload.cse.ucsc.edu/goldenpath/mm9/bigZips/mm9.2bit
     twoBitToFa mm9.2bit mm9.fa
+    wget https://hgdownload.gi.ucsc.edu/goldenPath/mm9/bigZips/genes/mm9.refGene.gtf.gz
     popd
 }
 
@@ -85,6 +87,58 @@ clean_sorted_peak() {
     done
 }
 
+split_by_SRR() {
+    title "split by SRR"
+    local accessions=()
+    collect_accession accessions
+    local accession
+    for accession in "${accessions[@]}"
+    do 
+        printf "split by SRR for %s\n" $accession
+        if [ -d ${DATA_DIR}/splited/${accession} ]
+        then
+            continue
+        fi
+        mkdir -p ${DATA_DIR}/splited/${accession}
+        chr10_first=$(
+            rg -n chr10 ${DATA_DIR}/sorted/${accession}.sorted.narrowPeak |
+            head -n1 |
+            cut -d: -f1
+        )
+        SRRs=$(head -n $(( ${chr10_first} - 1 )) ${DATA_DIR}/sorted/${accession}.sorted.narrowPeak | rg "_peak_1\s" | cut -f4 | sed s'/_peak_1$//')
+        for SRR in ${SRRs}
+        do
+            rg --no-mmap ${SRR} ${DATA_DIR}/sorted/${accession}.sorted.narrowPeak > ${DATA_DIR}/splited/${accession}/${accession}.${SRR}.sorted.narrowPeak
+        done
+    done
+}
+
+assess_peak_width() {
+    title "assess peak width"
+    scripts/assess_peak_width.py
+}
+
+filter_peak_by_width() {
+    title "filter peak by width"
+    local accessions=()
+    collect_accession accessions
+    mkdir -p $DATA_DIR/filtered
+    local width_upper_bound=$1
+    local accession
+    for accession in "${accessions[@]}"
+    do
+        if [ -f "$DATA_DIR/filtered/$accession.filtered.narrowPeak" ]
+        then
+            continue
+        fi
+        printf "filtered peak for %s\n" $accession
+        awk -v width_upper_bound=${width_upper_bound} '
+            $3 - $2 <= width_upper_bound {print}
+        ' $DATA_DIR/sorted/$accession.sorted.narrowPeak \
+            > $DATA_DIR/filtered/$accession.filtered.narrowPeak
+    done
+}
+
 remove_black_peak_and_cluster_peak() {
     title "remove black peak and cluster peak"
     local accessions=()
@@ -100,7 +154,7 @@ remove_black_peak_and_cluster_peak() {
         fi
         printf "calculate peak cluster for %s\n" $accession
         bedtools intersect -sorted -v \
-            -a $DATA_DIR/sorted/$accession.sorted.narrowPeak \
+            -a $DATA_DIR/filtered/$accession.filtered.narrowPeak \
             -b <(
                 bedtools sort -i genome/mm9-blacklist.bed
             ) |
@@ -128,53 +182,6 @@ choose_peak_by_pvalue_quantile_from_cluster() {
             < $DATA_DIR/clustered/$accession.clustered.narrowPeak \
             $cluster_quantile \
             > $DATA_DIR/selected/$accession.selected.narrowPeak
-    done
-}
-
-filter_peak_by_width_and_pvalue() {
-    title "filter peak by width and pvalue"
-    local accessions=()
-    collect_accession accessions
-    mkdir -p $DATA_DIR/filtered
-    local wlb
-    local wub
-    local plb
-    local pub
-    local accession
-    for accession in "${accessions[@]}"
-    do
-        if [ -f "$DATA_DIR/filtered/$accession.filtered.narrowPeak" ]
-        then
-            continue
-        fi
-        printf "filtered peak for %s\n" $accession
-        wlb=$(
-            awk '{print $3 - $2}' \
-                < $DATA_DIR/selected/$accession.selected.narrowPeak |
-            sort -n |
-            perl -e '$d=0.1;@l=<>;print $l[int($d*$#l)]'
-        )
-        wub=$(
-            awk '{print $3 - $2}' \
-                < $DATA_DIR/selected/$accession.selected.narrowPeak |
-            sort -n |
-            perl -e '$d=0.9;@l=<>;print $l[int($d*$#l)]'
-        )
-        plb=$(
-            awk '{print $8}' \
-                < $DATA_DIR/selected/$accession.selected.narrowPeak |
-            sort -g |
-            perl -e '$d=0.1;@l=<>;print $l[int($d*$#l)]'
-        )
-        pub=$(
-            awk '{print $8}' \
-                < $DATA_DIR/selected/$accession.selected.narrowPeak |
-            sort -g |
-            perl -e '$d=0.9;@l=<>;print $l[int($d*$#l)]'
-        )
-        awk -v wlb=$wlb -v wub=$wub -v plb=$plb -v pub=$pub '$3 - $2 <= wub && $3 - $2 >= wlb && $8 >= plb && $8 <= pub {print}' \
-            < $DATA_DIR/selected/$accession.selected.narrowPeak \
-            > $DATA_DIR/filtered/$accession.filtered.narrowPeak
     done
 }
 
@@ -386,11 +393,15 @@ generate_unittest_data() {
 
 # clean_sorted_peak
 
+split_by_SRR
+
+# assess_peak_width
+
+# filter_peak_by_width
+
 # remove_black_peak_and_cluster_peak
 
 # choose_peak_by_pvalue_quantile_from_cluster
-
-# filter_peak_by_width_and_pvalue
 
 # resize_peak_and_sort_by_summit
 
@@ -400,13 +411,13 @@ generate_unittest_data() {
 
 # get_protein_pairwise_closest_peak_distance
 
-generate_small_data 300
+# generate_small_data 300
 
-split_and_balance_small_data S300_data.csv
+# split_and_balance_small_data S300_data.csv
 
-generate_small_data 3000
+# generate_small_data 3000
 
-split_and_balance_small_data S3000_data.csv
+# split_and_balance_small_data S3000_data.csv
 
 # generate_inference_data
 

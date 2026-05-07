@@ -8,6 +8,8 @@
 
 # TODO
 
+- select seed such that pcdh CTCF peaks are included in wiz
+- shift peaks to increase bind rate
 - Review the hpo result on 107 machine
 - Try to train for 3000 for COP
 - Upload model to huggingface, deploy space for both versions
