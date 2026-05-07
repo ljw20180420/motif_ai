@@ -95,21 +95,8 @@ split_by_SRR() {
     for accession in "${accessions[@]}"
     do 
         printf "split by SRR for %s\n" $accession
-        if [ -d ${DATA_DIR}/splited/${accession} ]
-        then
-            continue
-        fi
         mkdir -p ${DATA_DIR}/splited/${accession}
-        chr10_first=$(
-            rg -n chr10 ${DATA_DIR}/sorted/${accession}.sorted.narrowPeak |
-            head -n1 |
-            cut -d: -f1
-        )
-        SRRs=$(head -n $(( ${chr10_first} - 1 )) ${DATA_DIR}/sorted/${accession}.sorted.narrowPeak | rg "_peak_1\s" | cut -f4 | sed s'/_peak_1$//')
-        for SRR in ${SRRs}
-        do
-            rg --no-mmap ${SRR} ${DATA_DIR}/sorted/${accession}.sorted.narrowPeak > ${DATA_DIR}/splited/${accession}/${accession}.${SRR}.sorted.narrowPeak
-        done
+        gawk -v accession=${accession} -f scripts/split_by_srr.awk -- ${DATA_DIR}/sorted/${accession}.sorted.narrowPeak
     done
 }
 
