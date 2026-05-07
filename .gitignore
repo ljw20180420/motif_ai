@@ -15,4 +15,5 @@
 /DeepZF/Data
 /DeepZF/Results
 /paper/benchmark
+/paper/infer_all_models
 /.gradio
