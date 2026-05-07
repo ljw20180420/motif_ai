@@ -5,9 +5,9 @@ import pathlib
 
 import pandas as pd
 
-os.makedirs("AI/dataset/assess_SRR", exist_ok=True)
+os.makedirs("assess_SRR", exist_ok=True)
 splited_dir = pathlib.Path(os.environ["DATA_DIR"]) / "splited"
-with open("AI/dataset/assess_SRR/criteras.csv") as fd:
+with open("assess_SRR/criteras.csv", "w") as fd:
     fd.write("accession,srr,peakNum,meanSignalValue,meanPeakWidth\n")
     for accession in os.listdir(splited_dir):
         for srr in os.listdir(splited_dir / accession):
@@ -31,3 +31,4 @@ with open("AI/dataset/assess_SRR/criteras.csv") as fd:
             meanSignalValue = df["signalValue"].mean().item()
             meanPeakWidth = (df["chromEnd"] - df["chromStart"]).mean().item()
             fd.write(f"{accession},{srr},{peakNum},{meanSignalValue},{meanPeakWidth}\n")
+            fd.flush()

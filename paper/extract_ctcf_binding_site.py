@@ -28,29 +28,25 @@ def get_pcdh_exons() -> pd.DataFrame:
             ],
         )
         .query(
-            "seqid == 'chr18' and type == 'exon' and attributes.str.contains(pat='pcdh', case=False) and attributes.str.contains(pat='exon_number \"1\"')"
+            "seqid == 'chr18' and type == 'exon' and attributes.str.contains(pat=r'pcdh\D', case=False) and attributes.str.contains(pat='exon_number \"1\"')"
         )
         .reset_index(drop=True)
+    )
+
+    breakpoint()
+
+    df = (
+        df
         .assign(
             pcdh=lambda df: df["attributes"].str.extract(
                 r"gene_id \"(Pcdh\w{1,2}\d{1,2})\""
             )[0]
         )[["seqid", "start", "end", "pcdh"]]
         .rename(columns={"seqid": "chrom"})
+        .assign(start=lambda df: df["start"] - 1)
     )
 
     return df
 
 
 df_exon = get_pcdh_exons()
-
-df_ctcf = pd.read_csv(
-    "/home/ljw/sdc1/COP_data/positive/Q61164.positive",
-    sep="\t",
-    names=["chrom", "start", "end", "summit", "sequence"],
-)[["chrom", "start", "end"]]
-
-df = bf.closest(df_exon, df_ctcf)
-
-
-breakpoint()

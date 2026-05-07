@@ -100,6 +100,16 @@ split_by_SRR() {
     done
 }
 
+assess_SRR() {
+    title "assess SRR"
+    scripts/assess_SRR.py
+}
+
+select_SRR() {
+    title "select SRR"
+    scripts/select_SRR.py
+}
+
 assess_peak_width() {
     title "assess peak width"
     scripts/assess_peak_width.py
@@ -114,61 +124,37 @@ filter_peak_by_width() {
     local accession
     for accession in "${accessions[@]}"
     do
-        if [ -f "$DATA_DIR/filtered/$accession.filtered.narrowPeak" ]
+        if [ -f "$DATA_DIR/filtered/$accession.sorted.narrowPeak" ]
         then
             continue
         fi
         printf "filtered peak for %s\n" $accession
         awk -v width_upper_bound=${width_upper_bound} '
             $3 - $2 <= width_upper_bound {print}
-        ' $DATA_DIR/sorted/$accession.sorted.narrowPeak \
-            > $DATA_DIR/filtered/$accession.filtered.narrowPeak
+        ' $DATA_DIR/single/$accession.sorted.narrowPeak \
+            > $DATA_DIR/filtered/$accession.sorted.narrowPeak
     done
 }
 
-remove_black_peak_and_cluster_peak() {
-    title "remove black peak and cluster peak"
+remove_black_peak() {
+    title "remove black peak"
     local accessions=()
     collect_accession accessions
-    mkdir -p $DATA_DIR/clustered
-    local cluster_max_distance="-50"
+    mkdir -p $DATA_DIR/white
     local accession
     for accession in "${accessions[@]}"
     do
-        if [ -f "$DATA_DIR/clustered/$accession.clustered.narrowPeak" ]
+        if [ -f "$DATA_DIR/white/$accession.sorted.narrowPeak" ]
         then
             continue
         fi
-        printf "calculate peak cluster for %s\n" $accession
+        printf "remove black peak for %s\n" $accession
         bedtools intersect -sorted -v \
-            -a $DATA_DIR/filtered/$accession.filtered.narrowPeak \
+            -a $DATA_DIR/filtered/$accession.sorted.narrowPeak \
             -b <(
                 bedtools sort -i genome/mm9-blacklist.bed
-            ) |
-        bedtools cluster \
-            -d $cluster_max_distance \
-            > $DATA_DIR/clustered/$accession.clustered.narrowPeak
-    done
-}
-
-choose_peak_by_pvalue_quantile_from_cluster() {
-    title "choose peak by pvalue quantile from cluster"
-    local accessions=()
-    collect_accession accessions
-    mkdir -p $DATA_DIR/selected
-    local cluster_quantile=0.9
-    local accession
-    for accession in "${accessions[@]}"
-    do
-        if [ -f "$DATA_DIR/selected/$accession.selected.narrowPeak" ]
-        then
-            continue
-        fi
-        printf "select peak for %s\n" $accession
-        ./scripts/choose_peak_by_pvalue_quantile_from_cluster.py \
-            < $DATA_DIR/clustered/$accession.clustered.narrowPeak \
-            $cluster_quantile \
-            > $DATA_DIR/selected/$accession.selected.narrowPeak
+            ) \
+            > $DATA_DIR/white/$accession.sorted.narrowPeak
     done
 }
 
@@ -198,7 +184,7 @@ resize_peak_and_sort_by_summit() {
                         new_summit = start + summit
                         printf("%s\t%d\t%d\t%d\n", $1, new_start, new_end, new_summit)
                     }
-                ' $DATA_DIR/filtered/$accession.filtered.narrowPeak |
+                ' $DATA_DIR/white/$accession.sorted.narrowPeak |
                 sort -k1,1 -k4,4n
             ) \
             genome/mm9.chrom.sizes \
@@ -235,28 +221,6 @@ extract_peak_site_sequence() {
     done
 }
 
-get_summit_sorted_peak_before_filter() {
-    title "get summit sorted peak before filter"
-    local accessions=()
-    collect_accession accessions
-    mkdir -p "$DATA_DIR/before_filter"
-    local accession
-    for accession in "${accessions[@]}"
-    do
-        if [ -f "$DATA_DIR/before_filter/${accession}.bed" ]
-        then
-            continue
-        fi
-        awk '
-            {
-                printf("%s\t%s\t%s\n", $1, $2 + $10, $2 + $10 + 1)
-            }
-        ' "$DATA_DIR/selected/${accession}.selected.narrowPeak" |
-        bedtools sort \
-            > "$DATA_DIR/before_filter/${accession}.bed"
-    done
-}
-
 get_protein_pairwise_closest_peak_distance() {
     title "get protein pairwise closest peak distance"
     local accessions=()
@@ -285,7 +249,13 @@ get_protein_pairwise_closest_peak_distance() {
                             }
                         ' $DATA_DIR/positive/${accession}.positive
                     ) \
-                    -b $DATA_DIR/before_filter/${accession2}.bed |
+                    -b <(
+                        awk '
+                            {
+                                printf("%s\t%s\t%s\n", $1, $4, $4 + 1)
+                            }
+                        ' $DATA_DIR/positive/${accession2}.positive
+                    ) |
                 awk -F $'\t' -v accession=${accession2} '
                     BEGIN{print accession}
                     {print $7}
@@ -380,21 +350,21 @@ generate_unittest_data() {
 
 # clean_sorted_peak
 
-split_by_SRR
+# split_by_SRR
+
+# assess_SRR
+
+select_SRR
 
 # assess_peak_width
 
 # filter_peak_by_width
 
-# remove_black_peak_and_cluster_peak
-
-# choose_peak_by_pvalue_quantile_from_cluster
+# remove_black_peak
 
 # resize_peak_and_sort_by_summit
 
 # extract_peak_site_sequence
-
-# get_summit_sorted_peak_before_filter
 
 # get_protein_pairwise_closest_peak_distance
 
