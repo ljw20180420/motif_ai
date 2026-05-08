@@ -285,13 +285,19 @@ get_protein_pairwise_closest_peak_distance() {
     done
 }
 
-balance_and_split_data() {
-    title "balance and split data"
+balance_data() {
+    title "balance data"
     local minimal_unbind_summit_distance=300
+    local seed=63036
+    scripts/balance_data.py ${minimal_unbind_summit_distance} ${seed}
+}
+
+split_data() {
+    title "split data"
     local validation_ratio=0.05
     local test_ratio=0.05
     local seed=63036
-    scripts/balance_and_split_data.py ${minimal_unbind_summit_distance} ${validation_ratio} ${test_ratio} ${seed}
+    scripts/split_data.py ${validation_ratio} ${test_ratio} ${seed}
 }
 
 random_DNA()
@@ -358,7 +364,9 @@ generate_unittest_data() {
 
 # get_protein_pairwise_closest_peak_distance
 
-balance_and_split_data
+balance_data
+
+# split_data
 
 # generate_inference_data
 
