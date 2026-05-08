@@ -11,6 +11,8 @@
 /AI/dataset/inference_data.csv
 /AI/dataset/extra/data
 /AI/dataset/assess_peak_width
+/AI/dataset/assess_SRR
+/AI/dataset/pCBS_train.csv
 /AI/app_space.yaml
 /DeepZF/Data
 /DeepZF/Results
