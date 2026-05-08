@@ -32,8 +32,8 @@ df_valid, df_test = train_test_split(
     stratify=df_valid_test["bind"],
 )
 
-balanced_dir = pathlib.Path("balanced")
-os.makedirs(balanced_dir, exist_ok=True)
-df_train.to_csv(balanced_dir / "train.csv", index=False)
-df_valid.to_csv(balanced_dir / "validation.csv", index=False)
-df_test.to_csv(balanced_dir / "test.csv", index=False)
+formal_dir = pathlib.Path("formal_data")
+os.makedirs(formal_dir, exist_ok=True)
+df_train.to_csv(formal_dir / "train.csv", index=False)
+df_valid.to_csv(formal_dir / "validation.csv", index=False)
+df_test.to_csv(formal_dir / "test.csv", index=False)

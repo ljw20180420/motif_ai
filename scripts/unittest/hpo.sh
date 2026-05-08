@@ -13,7 +13,7 @@ function title() {
 hpo_config="AI/hpo.yaml"
 output_dir=${OUTPUT_DIR:-"${HOME}/COP_results"}
 run_type="unittest"
-run_name="hpo"
+run_name="default"
 trial_name="trial"
 data_name=mouse_C2H2
 
@@ -37,5 +37,5 @@ do
         --train.train.batch_size 50 \
         --train.train.num_epochs 2 \
         --train.model ${model_config} \
-        --train.dataset.data_dir AI/dataset/balanced_unittest_data
+        --train.dataset.data_dir AI/dataset/unittest_data
 done
