@@ -13,7 +13,7 @@ title() {
 infer_config=AI/infer.yaml
 output_dir=${OUTPUT_DIR:-"${HOME}/COP_results"}
 run_type="formal"
-run_name="small"
+run_name="default"
 trial_name="default"
 data_name=mouse_C2H2
 input_file=${1:-"paper/infer_all_models/wiz.csv"}
