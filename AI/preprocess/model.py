@@ -14,8 +14,9 @@ class MLBase(MyModelAbstract):
     ) -> None:
         pass
 
+    @classmethod
     def _get_feature(
-        self,
+        cls,
         input: dict,
         label: Optional[dict],
     ) -> tuple[np.ndarray]:

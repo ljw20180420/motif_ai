@@ -60,6 +60,7 @@ do
                 --config ${train_config} \
                 --train.output_dir ${output_dir}/${run_type}/${run_name} \
                 --train.trial_name ${trial_name} \
+                --train.batch_size 1000000 \
                 --train.num_epochs 63 \
                 --train.evaluation_only false \
                 --train.device cpu \
