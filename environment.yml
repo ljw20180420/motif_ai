@@ -9,6 +9,7 @@ dependencies:
   - bioconda::ucsc-twobittofa
   - bioconda::seqkit
   - bioconda::meme
+  - python=3.10
   - pip
   - pip:
     - scikit-learn
@@ -23,8 +24,6 @@ dependencies:
     - transformers
     - diffusers
     - evaluate
-    - torchao
-    - torchtune
     - gradio
     - tbparse
     - HolisticTraceAnalysis
