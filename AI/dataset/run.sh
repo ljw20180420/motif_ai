@@ -285,6 +285,13 @@ get_protein_pairwise_closest_peak_distance() {
     done
 }
 
+sample_data() {
+    title "sample data"
+    local sample_num=$1
+    local seed=$2
+    scripts/sample_data.py ${sample_num} ${seed}
+}
+
 balance_data() {
     title "balance data"
     local minimal_unbind_summit_distance=300
@@ -364,7 +371,9 @@ generate_unittest_data() {
 
 # get_protein_pairwise_closest_peak_distance
 
-balance_data
+# sample_data 200000 15
+
+# balance_data
 
 # split_data
 

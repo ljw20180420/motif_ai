@@ -11,14 +11,18 @@ minimal_unbind_summit_distance = int(sys.argv[1])
 seed = int(sys.argv[2])
 rng = np.random.default_rng(seed)
 
-train_data_dir = pathlib.Path(os.environ["DATA_DIR"]) / "train_data"
+available_proteins = pd.read_csv("protein_feature.csv", header=0)["Entry"].to_list()
+sampled_data_dir = pathlib.Path(os.environ["DATA_DIR"]) / "sampled_data"
 balanced_data_dir = pathlib.Path(os.environ["DATA_DIR"]) / "balanced_data"
 os.makedirs(balanced_data_dir, exist_ok=True)
-for file in os.listdir(train_data_dir):
-    df = pd.read_csv(train_data_dir / file, header=0).astype({"DNA": "category"})
+for file in os.listdir(sampled_data_dir):
+    df = pd.read_csv(sampled_data_dir / file, header=0).astype({"DNA": "category"})
+    if df.loc[0, "protein"] not in available_proteins:
+        continue
     value_vars = df.columns.tolist()
     value_vars.remove("protein")
     value_vars.remove("DNA")
+    value_vars = [protein for protein in value_vars if protein in available_proteins]
     df = (
         df
         .melt(
