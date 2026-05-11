@@ -1,6 +1,6 @@
 import os
 import tempfile
-from typing import Callable, Literal
+from typing import Callable
 
 import numpy as np
 import pandas as pd
@@ -40,7 +40,6 @@ class Iterator(xgb.DataIter):
     def next(self, input_data: Callable) -> bool:
         """Advance the iterator by 1 step and pass the data to XGBoost.  This function
         is called by XGBoost during the construction of ``DMatrix``
-
         """
         try:
             examples = next(self.dataiter)

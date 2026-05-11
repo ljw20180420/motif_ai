@@ -1,5 +1,7 @@
 import os
+from typing import Any
 
+import datasets
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
@@ -12,6 +14,37 @@ from tqdm import tqdm
 
 from ..data_collator import DataCollator
 from ..model import MLBase
+
+
+class Sequence(lgb.Sequence):
+    def __init__(
+        self,
+        dataset: datasets.Dataset,
+        data_collator: DataCollator,
+        my_generator: MyGenerator,
+        batch_size: int,
+    ):
+        self.dataset = dataset
+        self.data_collator = data_collator
+        self.my_generator = my_generator
+        self.batch_size = batch_size
+
+    def __getitem__(self, idx: int | slice[Any, Any, Any] | list[int]):
+        if isinstance(idx, slice):
+            examples = [self.dataset[i] for i in range(idx.start, idx.stop, idx.step)]
+        elif isinstance(idx, list):
+            examples = [self.dataset[i] for i in idx]
+        else:
+            examples = [self.dataset[idx]]
+
+        batch = self.data_collator(
+            examples, output_label=False, my_generator=self.my_generator
+        )
+
+        return
+
+    def __len__(self):
+        return len(self.data)
 
 
 class LightGBM(MLBase):
@@ -54,14 +87,12 @@ class LightGBM(MLBase):
         )
         batch_size = X_value.shape[0]
         probas = self.booster.predict(data=X_value)
-        df = pd.DataFrame(
-            {
-                "sample_idx": np.arange(batch_size),
-                "proba": probas,
-                "DNA": [example["DNA"] for example in examples],
-                "protein": [example["protein"] for example in examples],
-            }
-        )
+        df = pd.DataFrame({
+            "sample_idx": np.arange(batch_size),
+            "proba": probas,
+            "DNA": [example["DNA"] for example in examples],
+            "protein": [example["protein"] for example in examples],
+        })
 
         return df
 
