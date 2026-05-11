@@ -16,7 +16,6 @@ run_type="formal"
 run_name="default"
 trial_name="default"
 data_name=mouse_C2H2
-input_file=${1:-"paper/infer_all_models/wiz.csv"}
 
 for pre_model in \
     LightGBM:LightGBM \
@@ -36,9 +35,18 @@ do
     logs_path=${output_dir}/${run_type}/${run_name}/logs/${preprocess}/${model_cls}/${data_name}/${trial_name}
 
     title Infer
-    ./run.py infer --config ${infer_config} \
-        --input ${input_file} \
-        --output paper/infer_all_models/${model_cls}.csv \
-        --test.checkpoints_path ${checkpoints_path} \
-        --test.logs_path ${logs_path}
+
+    for suffix in \
+        "" \
+        "_train"
+    do
+        input_file="paper/infer_all_models/wiz${suffix}.csv"
+        output_ile=paper/infer_all_models/output/${model_cls}${suffix}.csv
+        ./run.py infer \
+            --config ${infer_config} \
+            --input ${input_file} \
+            --output ${output_file} \
+            --test.checkpoints_path ${checkpoints_path} \
+            --test.logs_path ${logs_path}
+    done
 done
