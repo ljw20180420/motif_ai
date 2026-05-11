@@ -50,6 +50,7 @@ do
                 --config ${train_config} \
                 --train.output_dir ${output_dir}/${run_type}/${run_name} \
                 --train.trial_name ${trial_name} \
+                --train.batch_size 1000000 \
                 --train.evaluation_only false \
                 --train.device cpu \
                 --model ${model_config} \
@@ -60,7 +61,7 @@ do
                 --config ${train_config} \
                 --train.output_dir ${output_dir}/${run_type}/${run_name} \
                 --train.trial_name ${trial_name} \
-                --train.batch_size 5000 \
+                --train.batch_size 1000000 \
                 --train.evaluation_only false \
                 --train.device cpu \
                 --model ${model_config} \
@@ -71,7 +72,7 @@ do
                 --config ${train_config} \
                 --train.output_dir ${output_dir}/${run_type}/${run_name} \
                 --train.trial_name ${trial_name} \
-                --train.batch_size 10000 \
+                --train.batch_size 1000000 \
                 --train.num_epochs 1 \
                 --train.evaluation_only false \
                 --train.device cpu \

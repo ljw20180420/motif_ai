@@ -1,7 +1,5 @@
 import os
-from typing import Any
 
-import datasets
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
@@ -14,37 +12,6 @@ from tqdm import tqdm
 
 from ..data_collator import DataCollator
 from ..model import MLBase
-
-
-class Sequence(lgb.Sequence):
-    def __init__(
-        self,
-        dataset: datasets.Dataset,
-        data_collator: DataCollator,
-        my_generator: MyGenerator,
-        batch_size: int,
-    ):
-        self.dataset = dataset
-        self.data_collator = data_collator
-        self.my_generator = my_generator
-        self.batch_size = batch_size
-
-    def __getitem__(self, idx: int | slice[Any, Any, Any] | list[int]):
-        if isinstance(idx, slice):
-            examples = [self.dataset[i] for i in range(idx.start, idx.stop, idx.step)]
-        elif isinstance(idx, list):
-            examples = [self.dataset[i] for i in idx]
-        else:
-            examples = [self.dataset[idx]]
-
-        batch = self.data_collator(
-            examples, output_label=False, my_generator=self.my_generator
-        )
-
-        return
-
-    def __len__(self):
-        return len(self.data)
 
 
 class LightGBM(MLBase):
@@ -142,21 +109,9 @@ class LightGBM(MLBase):
         metrics: dict,
     ) -> tuple:
         if not hasattr(self, "train_data"):
-            X_train, y_train = [], []
-            for examples in tqdm(train_dataloader):
-                batch = self.data_collator(
-                    examples, output_label=True, my_generator=my_generator
-                )
-
-                X_value, y_value = self._get_feature(
-                    input=batch["input"], label=batch["label"]
-                )
-                X_train.append(X_value)
-                y_train.append(y_value)
-
-            X_train = np.concatenate(X_train)
-            y_train = np.concatenate(y_train)
-
+            X_train, y_train = self._get_feature_all(
+                dataloader=train_dataloader, my_generator=my_generator
+            )
             self.train_data = lgb.Dataset(
                 data=X_train,
                 label=y_train,
@@ -165,21 +120,9 @@ class LightGBM(MLBase):
             )
 
         if not hasattr(self, "eval_data"):
-            X_eval, y_eval = [], []
-            for examples in tqdm(eval_dataloader):
-                batch = self.data_collator(
-                    examples, output_label=True, my_generator=my_generator
-                )
-
-                X_value, y_value = self._get_feature(
-                    input=batch["input"], label=batch["label"]
-                )
-                X_eval.append(X_value)
-                y_eval.append(y_value)
-
-            X_eval = np.concatenate(X_eval)
-            y_eval = np.concatenate(y_eval)
-
+            X_eval, y_eval = self._get_feature_all(
+                dataloader=eval_dataloader, my_generator=my_generator
+            )
             self.eval_data = lgb.Dataset(
                 data=X_eval,
                 label=y_eval,
