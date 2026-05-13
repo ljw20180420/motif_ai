@@ -67,7 +67,20 @@ do
                 --model ${model_config} \
                 --dataset.data_dir AI/dataset/formal_data
         ;;
-        RandomForest|DecisionTree)
+        RandomForest)
+            ./run.py train \
+                --config ${train_config} \
+                --train.output_dir ${output_dir}/${run_type}/${run_name} \
+                --train.trial_name ${trial_name} \
+                --train.batch_size 1000000 \
+                --train.num_epochs 1 \
+                --train.evaluation_only false \
+                --train.device cpu \
+                --model ${model_config} \
+                --dataset.data_dir AI/dataset/formal_data \
+                --generator.seed 11
+        ;;
+        DecisionTree)
             ./run.py train \
                 --config ${train_config} \
                 --train.output_dir ${output_dir}/${run_type}/${run_name} \
