@@ -1,5 +1,3 @@
-from typing import Optional
-
 import jsonargparse
 import numpy as np
 import optuna
@@ -16,44 +14,76 @@ class MLBase(MyModelAbstract):
     ) -> None:
         pass
 
+    @classmethod
     def _get_feature(
-        self,
-        input: dict,
-        label: Optional[dict],
+        cls,
+        input: dict | None,
+        label: dict | None,
     ) -> tuple[np.ndarray]:
-        X_value = np.concatenate(
-            (
-                input["dna_id"].cpu().numpy(),
-                input["protein_id"].cpu().numpy(),
-                input["second_id"].cpu().numpy(),
-            ),
-            axis=1,
+        assert input is not None or label is not None, (
+            "at least one of input and label should not be None"
         )
+        if input is not None:
+            X_value = np.concatenate(
+                (
+                    input["dna_id"].cpu().numpy(),
+                    input["protein_id"].cpu().numpy(),
+                    input["second_id"].cpu().numpy(),
+                ),
+                axis=1,
+            )
 
         if label is not None:
             y_value = label["bind"].cpu().numpy()
+
+        if input is not None and label is not None:
             return X_value, y_value
+        elif input is not None:
+            return X_value
+        return y_value
 
-        return X_value
-
+    @classmethod
     def _get_feature_all(
-        self, dataloader: torch.utils.data.DataLoader, my_generator: MyGenerator
+        cls,
+        dataloader: torch.utils.data.DataLoader,
+        my_generator: MyGenerator,
+        output_X: bool,
+        output_y: bool,
     ) -> tuple[np.ndarray]:
-        X, y = [], []
+        assert output_X or output_y, "output nothing is not allowed"
+        if output_X:
+            X = []
+        if output_y:
+            y = []
         for examples in tqdm(dataloader):
-            batch = self.data_collator(
-                examples, output_label=True, my_generator=my_generator
+            batch = cls.data_collator(
+                examples, output_label=output_y, my_generator=my_generator
             )
-            X_value, y_value = self._get_feature(
-                input=batch["input"], label=batch["label"]
+            values = cls._get_feature(
+                input=batch["input"] if output_X else None,
+                label=batch["label"] if output_y else None,
             )
-            X.append(X_value)
-            y.append(y_value)
+            if output_X and output_y:
+                X_value, y_value = values
+            elif output_X:
+                X_value = values
+            else:
+                y_value = values
+            if output_X:
+                X.append(X_value.astype(np.int8))
+            if output_y:
+                y.append(y_value.astype(np.int8))
 
-        X = np.concatenate(X)
-        y = np.concatenate(y)
+        if output_X:
+            X = np.concatenate(X)
+        if output_y:
+            y = np.concatenate(y)
 
-        return X, y
+        if output_X and output_y:
+            return X, y
+        elif output_X:
+            return X
+        return y
 
     @classmethod
     def hpo(cls, trial: optuna.Trial, cfg: jsonargparse.Namespace) -> None:

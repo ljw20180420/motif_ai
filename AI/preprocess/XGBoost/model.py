@@ -1,4 +1,5 @@
 import os
+from typing import Callable
 
 import numpy as np
 import pandas as pd
@@ -12,6 +13,51 @@ from tqdm import tqdm
 
 from ..data_collator import DataCollator
 from ..model import MLBase
+
+
+class Iterator(xgb.DataIter):
+    """A custom iterator for loading files in batches."""
+
+    def __init__(
+        self,
+        dataloader: torch.utils.data.DataLoader,
+        data_collator: DataCollator,
+        my_generator: MyGenerator,
+    ) -> None:
+        self.dataloader = torch.utils.data.DataLoader(
+            dataset=dataloader.dataset,
+            batch_size=dataloader.batch_size,
+            collate_fn=lambda examples: examples,
+        )
+        self.dataiter = iter(self.dataloader)
+        self.data_collator = data_collator
+        self.my_generator = my_generator
+        self._it = 0
+        super().__init__()
+
+    def next(self, input_data: Callable) -> bool:
+        """Advance the iterator by 1 step and pass the data to XGBoost.  This function
+        is called by XGBoost during the construction of ``DMatrix``
+        """
+        try:
+            examples = next(self.dataiter)
+            batch = self.data_collator(
+                examples, output_label=True, my_generator=self.my_generator
+            )
+            X, y = MLBase._get_feature(input=batch["input"], label=batch["label"])
+            input_data(
+                data=X.astype(np.int8),
+                label=y.astype(np.int8),
+                feature_types=["c"] * X.shape[-1],
+            )
+        except StopIteration:
+            return False
+
+        return True
+
+    def reset(self) -> None:
+        """Reset the iterator to its beginning"""
+        self.dataiter = iter(self.dataloader)
 
 
 class XGBoost(MLBase):
@@ -113,27 +159,31 @@ class XGBoost(MLBase):
         metrcis: dict,
     ) -> tuple:
         if not hasattr(self, "Xy_train"):
-            X_train, y_train = self._get_feature_all(
-                dataloader=train_dataloader, my_generator=my_generator
-            )
             self.Xy_train = xgb.QuantileDMatrix(
-                data=X_train,
-                label=y_train,
-                feature_types=["c"] * X_train.shape[-1],
+                data=Iterator(
+                    dataloader=train_dataloader,
+                    data_collator=self.data_collator,
+                    my_generator=my_generator,
+                ),
                 enable_categorical=True,
             )
 
         if not hasattr(self, "Xy_eval"):
             # Use QuantileDMatrix for evaluation and test is not recommanded because it needs train data as ref, which defeats the purpose of saving memory. See https://xgboost.readthedocs.io/en/stable/python/python_api.html#xgboost.QuantileDMatrix and https://www.kaggle.com/code/cdeotte/xgboost-using-original-data-cv-0-976?scriptVersionId=257750413&cellId=24
-            X_eval, y_eval = self._get_feature_all(
-                dataloader=eval_dataloader, my_generator=my_generator
+            X, y = self._get_feature_all(
+                dataloader=eval_dataloader,
+                my_generator=my_generator,
+                output_X=True,
+                output_y=True,
             )
             self.Xy_eval = xgb.DMatrix(
-                data=X_eval,
-                label=y_eval,
-                feature_types=["c"] * X_eval.shape[-1],
+                data=X,
+                label=y,
+                feature_types=["c"] * X.shape[-1],
                 enable_categorical=True,
             )
+            del X
+            del y
 
         evals_result = self._train_booster(my_generator)
 

@@ -14,6 +14,51 @@ from ..data_collator import DataCollator
 from ..model import MLBase
 
 
+class LightSeq(lgb.Sequence):
+    def __init__(
+        self,
+        dataloader: torch.utils.data.DataLoader,
+        data_collator: DataCollator,
+        my_generator: MyGenerator,
+    ) -> None:
+        self.dataset = dataloader.dataset
+        self.data_collator = data_collator
+        self.my_generator = my_generator
+        self.batch_size = self.data_collator.batch_size
+
+    def __len__(self) -> int:
+        return len(self.dataset)
+
+    def __getitem__(self, idx: int | slice[int, int, int]) -> np.ndarray:
+        if isinstance(idx, int):
+            examples = [self.dataset[idx]]
+        elif isinstance(idx, slice):
+            examples = [
+                self.dataset[i]
+                for i in range(start=idx.start, stop=idx.stop, step=idx.step)
+            ]
+        batch = self.data_collator(
+            examples, output_label=False, my_generator=self.my_generator
+        )
+        X = MLBase._get_feature(input=batch["input"], label=None)
+        if isinstance(idx, int):
+            X = X[0]
+
+        return X.astype(np.int8)
+
+    def get_y(self) -> np.ndarray:
+        return MLBase._get_feature_all(
+            dataloader=torch.utils.data.DataLoader(
+                dataset=self.dataset,
+                batch_size=self.batch_size,
+                collate_fn=lambda examples: examples,
+            ),
+            my_generator=self.my_generator,
+            output_X=False,
+            output_y=True,
+        )
+
+
 class LightGBM(MLBase):
     def __init__(
         self,
@@ -108,28 +153,31 @@ class LightGBM(MLBase):
         my_profiler: MyProfiler,
         metrics: dict,
     ) -> tuple:
-        if not hasattr(self, "train_data"):
-            X_train, y_train = self._get_feature_all(
-                dataloader=train_dataloader, my_generator=my_generator
+        if not hasattr(self, "train_data") or not hasattr(self, "eval_data"):
+            X_eval, y_eval = self._get_feature_all(
+                dataloader=eval_dataloader,
+                my_generator=my_generator,
+                output_X=True,
+                output_y=True,
+            )
+            light_seq = LightSeq(
+                dataloader=train_dataloader,
+                data_collator=self.data_collator,
+                my_generator=my_generator,
             )
             self.train_data = lgb.Dataset(
-                data=X_train,
-                label=y_train,
-                categorical_feature=list(range(X_train.shape[-1])),
-                free_raw_data=False,
-            )
-
-        if not hasattr(self, "eval_data"):
-            X_eval, y_eval = self._get_feature_all(
-                dataloader=eval_dataloader, my_generator=my_generator
+                data=light_seq,
+                label=light_seq.get_y(),
+                categorical_feature=list(range(X_eval.shape[-1])),
             )
             self.eval_data = lgb.Dataset(
                 data=X_eval,
                 label=y_eval,
                 reference=self.train_data,
                 categorical_feature=list(range(X_eval.shape[-1])),
-                free_raw_data=False,
             )
+            del X_eval
+            del y_eval
 
         eval_result = self._train_booster(my_generator)
 
