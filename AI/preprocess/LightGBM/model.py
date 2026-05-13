@@ -53,6 +53,7 @@ class LightSeq(lgb.Sequence):
                 batch_size=self.batch_size,
                 collate_fn=lambda examples: examples,
             ),
+            data_collator=self.data_collator,
             my_generator=self.my_generator,
             output_X=False,
             output_y=True,
@@ -156,6 +157,7 @@ class LightGBM(MLBase):
         if not hasattr(self, "train_data") or not hasattr(self, "eval_data"):
             X_eval, y_eval = self._get_feature_all(
                 dataloader=eval_dataloader,
+                data_collator=self.data_collator,
                 my_generator=my_generator,
                 output_X=True,
                 output_y=True,

@@ -7,6 +7,8 @@ from common_ai.initializer import MyInitializer
 from common_ai.model import MyModelAbstract
 from tqdm import tqdm
 
+from .data_collator import DataCollator
+
 
 class MLBase(MyModelAbstract):
     def my_initialize_model(
@@ -46,6 +48,7 @@ class MLBase(MyModelAbstract):
     def _get_feature_all(
         cls,
         dataloader: torch.utils.data.DataLoader,
+        data_collator: DataCollator,
         my_generator: MyGenerator,
         output_X: bool,
         output_y: bool,
@@ -56,7 +59,7 @@ class MLBase(MyModelAbstract):
         if output_y:
             y = []
         for examples in tqdm(dataloader):
-            batch = cls.data_collator(
+            batch = data_collator(
                 examples, output_label=output_y, my_generator=my_generator
             )
             values = cls._get_feature(
