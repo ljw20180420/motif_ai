@@ -7,7 +7,7 @@ cd ../..
 
 title() {
     sharps="#################################"
-    printf "\n%s\n%s\n%s\n" ${sharps} $1 ${sharps}
+    printf "\n%s\n%s\n%s\n" ${sharps} "$1" ${sharps}
 }
 
 train_config=AI/train.yaml
