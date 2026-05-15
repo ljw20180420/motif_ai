@@ -77,8 +77,7 @@ do
                 --train.evaluation_only false \
                 --train.device cpu \
                 --model ${model_config} \
-                --dataset.data_dir AI/dataset/formal_data \
-                --generator.seed 11
+                --dataset.data_dir AI/dataset/formal_data
         ;;
         DecisionTree)
             ./run.py train \

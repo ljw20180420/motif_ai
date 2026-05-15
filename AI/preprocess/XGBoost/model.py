@@ -82,7 +82,7 @@ class XGBoost(MLBase):
             colsample_bynode: subsample ratio of columns for each node (split).
             eta: Shrink of step size after each round.
             max_depth: maximum depth of a tree.
-            num_boost_round: Number of trees generated in single epochs.
+            num_boost_round: number of trees generated in single epochs.
         """
         self.subsample = subsample
         self.colsample_bynode = colsample_bynode

@@ -1,5 +1,6 @@
 **/__pycache__
-.vscode
+/.vscode
+/.gradio
 /AI/dataset/genome
 /AI/dataset/alphafoldDB_mmcif
 /AI/dataset/protein_feature.csv
@@ -18,4 +19,4 @@
 /DeepZF/Results
 /paper/benchmark
 /paper/infer_all_models
-/.gradio
+/zlog
