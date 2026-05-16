@@ -29,7 +29,7 @@ class LightSeq(lgb.Sequence):
     def __len__(self) -> int:
         return len(self.dataset)
 
-    def __getitem__(self, idx: int | slice[int, int, int]) -> np.ndarray:
+    def __getitem__(self, idx: int | slice) -> np.ndarray:
         if isinstance(idx, int):
             examples = [self.dataset[idx]]
         elif isinstance(idx, slice):
@@ -45,19 +45,6 @@ class LightSeq(lgb.Sequence):
             X = X[0]
 
         return X.astype(np.int8)
-
-    def get_y(self) -> np.ndarray:
-        return MLBase._get_feature_all(
-            dataloader=torch.utils.data.DataLoader(
-                dataset=self.dataset,
-                batch_size=self.batch_size,
-                collate_fn=lambda examples: examples,
-            ),
-            data_collator=self.data_collator,
-            my_generator=self.my_generator,
-            output_X=False,
-            output_y=True,
-        )
 
 
 class LightGBM(MLBase):
@@ -159,8 +146,7 @@ class LightGBM(MLBase):
                 dataloader=eval_dataloader,
                 data_collator=self.data_collator,
                 my_generator=my_generator,
-                output_X=True,
-                output_y=True,
+                output_label=True,
             )
             light_seq = LightSeq(
                 dataloader=train_dataloader,
@@ -169,7 +155,7 @@ class LightGBM(MLBase):
             )
             self.train_data = lgb.Dataset(
                 data=light_seq,
-                label=light_seq.get_y(),
+                label=np.array(light_seq.dataset["bind"], dtype=np.int8),
                 categorical_feature=list(range(X_eval.shape[-1])),
             )
             self.eval_data = lgb.Dataset(

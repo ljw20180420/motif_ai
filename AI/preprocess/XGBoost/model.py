@@ -174,8 +174,7 @@ class XGBoost(MLBase):
                 dataloader=eval_dataloader,
                 data_collator=self.data_collator,
                 my_generator=my_generator,
-                output_X=True,
-                output_y=True,
+                output_label=True,
             )
             self.Xy_eval = xgb.DMatrix(
                 data=X,

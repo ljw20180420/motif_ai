@@ -34,14 +34,12 @@ class SKBase(MLBase):
         )
         batch_size = X_value.shape[0]
         probas = self._predict_proba(X_value)
-        df = pd.DataFrame(
-            {
-                "sample_idx": np.arange(batch_size),
-                "proba": probas,
-                "DNA": [example["DNA"] for example in examples],
-                "protein": [example["protein"] for example in examples],
-            }
-        )
+        df = pd.DataFrame({
+            "sample_idx": np.arange(batch_size),
+            "proba": probas,
+            "DNA": [example["DNA"] for example in examples],
+            "protein": [example["protein"] for example in examples],
+        })
 
         return df
 
@@ -161,7 +159,7 @@ class SKLinearBase(SKBase):
     def _get_feature(
         self,
         input: dict,
-        label: Optional[dict],
+        label: dict | None,
     ) -> tuple[np.ndarray]:
         dna_ids = input["dna_id"].cpu().numpy()
         protein_ids = input["protein_id"].cpu().numpy()

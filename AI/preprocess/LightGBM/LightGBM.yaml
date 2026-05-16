@@ -5,5 +5,5 @@ init_args:
   dna_length: 100
   subsample: 0.8
   colsample_bynode: 0.8
-  eta: 0.02
-  num_boost_round: 3
+  eta: 0.9
+  num_boost_round: 1
