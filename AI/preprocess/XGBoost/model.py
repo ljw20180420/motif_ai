@@ -172,7 +172,6 @@ class XGBoost(MLBase):
             # Use QuantileDMatrix for evaluation and test is not recommanded because it needs train data as ref, which defeats the purpose of saving memory. See https://xgboost.readthedocs.io/en/stable/python/python_api.html#xgboost.QuantileDMatrix and https://www.kaggle.com/code/cdeotte/xgboost-using-original-data-cv-0-976?scriptVersionId=257750413&cellId=24
             X, y = self._get_feature_all(
                 dataloader=eval_dataloader,
-                data_collator=self.data_collator,
                 my_generator=my_generator,
                 output_label=True,
             )

@@ -37,11 +37,9 @@ class MLBase(MyModelAbstract):
 
         return X_value
 
-    @classmethod
     def _get_feature_all(
-        cls,
+        self,
         dataloader: torch.utils.data.DataLoader,
-        data_collator: DataCollator,
         my_generator: MyGenerator,
         output_label: bool,
     ) -> tuple[np.ndarray]:
@@ -49,15 +47,15 @@ class MLBase(MyModelAbstract):
         if output_label:
             y = []
         for examples in tqdm(dataloader):
-            batch = data_collator(
+            batch = self.data_collator(
                 examples, output_label=output_label, my_generator=my_generator
             )
             if output_label:
-                X_value, y_value = cls._get_feature(
+                X_value, y_value = self._get_feature(
                     input=batch["input"], label=batch["label"]
                 )
             else:
-                X_value = cls._get_feature(input=batch["input"], label=None)
+                X_value = self._get_feature(input=batch["input"], label=None)
             X.append(X_value.astype(np.int8))
             if output_label:
                 y.append(y_value.astype(np.int8))

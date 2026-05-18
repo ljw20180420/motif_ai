@@ -24,27 +24,27 @@ class LightSeq(lgb.Sequence):
         self.dataset = dataloader.dataset
         self.data_collator = data_collator
         self.my_generator = my_generator
-        self.batch_size = self.data_collator.batch_size
+        self.batch_size = dataloader.batch_size
 
     def __len__(self) -> int:
         return len(self.dataset)
 
     def __getitem__(self, idx: int | slice) -> np.ndarray:
-        if isinstance(idx, int):
-            examples = [self.dataset[idx]]
-        elif isinstance(idx, slice):
+        if isinstance(idx, slice):
             examples = [
                 self.dataset[i]
-                for i in range(start=idx.start, stop=idx.stop, step=idx.step)
+                for i in range(idx.start, idx.stop, 1 if idx.step is None else idx.step)
             ]
+        else:
+            examples = [self.dataset[idx]]
         batch = self.data_collator(
             examples, output_label=False, my_generator=self.my_generator
         )
         X = MLBase._get_feature(input=batch["input"], label=None)
-        if isinstance(idx, int):
+        if not isinstance(idx, slice):
             X = X[0]
 
-        return X.astype(np.int8)
+        return X.astype(np.double)
 
 
 class LightGBM(MLBase):
@@ -144,7 +144,6 @@ class LightGBM(MLBase):
         if not hasattr(self, "train_data") or not hasattr(self, "eval_data"):
             X_eval, y_eval = self._get_feature_all(
                 dataloader=eval_dataloader,
-                data_collator=self.data_collator,
                 my_generator=my_generator,
                 output_label=True,
             )
