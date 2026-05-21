@@ -20,11 +20,6 @@ from ..model import MLBase
 
 
 class SKBase(MLBase):
-    def __init__(self):
-        self.dna_onehot_encoder = OneHotEncoder().fit([[i] for i in range(7)])
-        self.protein_onehot_encoder = OneHotEncoder().fit([[i] for i in range(26)])
-        self.second_onehot_encoder = OneHotEncoder().fit([[i] for i in range(12)])
-
     def eval_output(
         self, examples: list[dict], batch: dict, my_generator: MyGenerator
     ) -> pd.DataFrame:
@@ -156,6 +151,11 @@ class CategoricalNB(SKBase):
 
 
 class SKLinearBase(SKBase):
+    def __init__(self):
+        self.dna_onehot_encoder = OneHotEncoder().fit([[i] for i in range(7)])
+        self.protein_onehot_encoder = OneHotEncoder().fit([[i] for i in range(26)])
+        self.second_onehot_encoder = OneHotEncoder().fit([[i] for i in range(12)])
+
     def _get_feature(
         self,
         input: dict,
