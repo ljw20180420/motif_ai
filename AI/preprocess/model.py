@@ -7,8 +7,6 @@ from common_ai.initializer import MyInitializer
 from common_ai.model import MyModelAbstract
 from tqdm import tqdm
 
-from .data_collator import DataCollator
-
 
 class MLBase(MyModelAbstract):
     def my_initialize_model(

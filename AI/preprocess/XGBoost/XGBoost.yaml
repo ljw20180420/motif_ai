@@ -6,5 +6,5 @@ init_args:
   subsample: 0.8
   colsample_bynode: 0.8
   eta: 0.9
-  max_depth: 7
-  num_boost_round: 1
+  max_depth: 6
+  num_boost_round: 33
