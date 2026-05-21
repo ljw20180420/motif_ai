@@ -1,7 +1,6 @@
 import io
 import os
 import pathlib
-import pickle
 import re
 import subprocess
 import tempfile
@@ -53,14 +52,12 @@ class DeepZF(MyModelAbstract):
         scores = self._get_scores(batch["input"], examples)
         batch_size = len(scores)
         probas = self._predict_proba(scores)
-        df = pd.DataFrame(
-            {
-                "sample_idx": np.arange(batch_size),
-                "proba": probas,
-                "DNA": [example["DNA"] for example in examples],
-                "protein": [example["protein"] for example in examples],
-            }
-        )
+        df = pd.DataFrame({
+            "sample_idx": np.arange(batch_size),
+            "proba": probas,
+            "DNA": [example["DNA"] for example in examples],
+            "protein": [example["protein"] for example in examples],
+        })
 
         return df
 
@@ -116,16 +113,21 @@ class DeepZF(MyModelAbstract):
             )
 
             df_input = (
-                pd.read_csv(tmpdir_path / "input.csv", header=0)
+                pd
+                .read_csv(tmpdir_path / "input.csv", header=0)
                 .assign(
                     proba=pd.read_csv(tmpdir_path / "output.csv", names=["proba"])[
                         "proba"
                     ],
-                    thres=lambda df: df.groupby("groups")["proba"]
-                    .transform("max")
-                    .clip(upper=self.pwm_thres),
+                    thres=lambda df: (
+                        df
+                        .groupby("groups")["proba"]
+                        .transform("max")
+                        .clip(upper=self.pwm_thres)
+                    ),
                     pwm=list(
-                        pd.read_csv(tmpdir_path / "PWM.csv", names=["pwm"])["pwm"]
+                        pd
+                        .read_csv(tmpdir_path / "PWM.csv", names=["pwm"])["pwm"]
                         .to_numpy()
                         .reshape([-1, 3, 4])
                     ),
@@ -166,15 +168,13 @@ class DeepZF(MyModelAbstract):
             for accession in set([example["protein"] for example in examples]):
                 if accession not in self.motifs:
                     dfs.append(
-                        pd.DataFrame(
-                            {
-                                "index": [
-                                    idx
-                                    for idx, example in enumerate(examples)
-                                    if example["protein"] == accession
-                                ],
-                            }
-                        ).assign(score=float("nan"))
+                        pd.DataFrame({
+                            "index": [
+                                idx
+                                for idx, example in enumerate(examples)
+                                if example["protein"] == accession
+                            ],
+                        }).assign(score=float("nan"))
                     )
                     continue
 
@@ -305,8 +305,8 @@ class DeepZF(MyModelAbstract):
             df = self.eval_output(examples, batch, my_generator)
             log_proba = np.stack(
                 [
-                    np.ma.log(1 - df["proba"]).filled(-1000),
-                    np.ma.log(df["proba"]).filled(-1000),
+                    np.ma.log(1 - df["proba"].to_numpy()).filled(-1000),
+                    np.ma.log(df["proba"].to_numpy()).filled(-1000),
                 ],
                 axis=1,
             )
