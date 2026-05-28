@@ -25,6 +25,7 @@ for pre_model in \
     Scikit:SGDClassifier \
     Scikit:Perceptron \
     Scikit:PassiveAggressiveClassifier \
+    Scikit:SupportVectorMachine \
     DeepZF:DeepZF \
     COP:COP
 do
@@ -40,36 +41,12 @@ do
                 --config ${train_config} \
                 --train.output_dir ${output_dir}/${run_type}/${run_name} \
                 --train.trial_name ${trial_name} \
-                --train.num_epochs 103 \
+                --train.num_epochs 33 \
                 --train.evaluation_only false \
                 --model ${model_config} \
                 --dataset.data_dir AI/dataset/formal_data
         ;;
-        LightGBM)
-            ./run.py train \
-                --config ${train_config} \
-                --train.output_dir ${output_dir}/${run_type}/${run_name} \
-                --train.trial_name ${trial_name} \
-                --train.batch_size 1000000 \
-                --train.num_epochs 1 \
-                --train.evaluation_only false \
-                --train.device cpu \
-                --model ${model_config} \
-                --dataset.data_dir AI/dataset/formal_data
-        ;;
-        XGBoost)
-            ./run.py train \
-                --config ${train_config} \
-                --train.output_dir ${output_dir}/${run_type}/${run_name} \
-                --train.trial_name ${trial_name} \
-                --train.batch_size 1000000 \
-                --train.num_epochs 1 \
-                --train.evaluation_only false \
-                --train.device cpu \
-                --model ${model_config} \
-                --dataset.data_dir AI/dataset/formal_data
-        ;;
-        RandomForest|DecisionTree)
+        LightGBM|XGBoost|RandomForest|DecisionTree)
             ./run.py train \
                 --config ${train_config} \
                 --train.output_dir ${output_dir}/${run_type}/${run_name} \
@@ -92,7 +69,7 @@ do
                 --model ${model_config} \
                 --dataset.data_dir AI/dataset/formal_data
         ;;
-        PassiveAggressiveClassifier|Perceptron|SDGClassifier)
+        PassiveAggressiveClassifier|Perceptron|SDGClassifier|SupportVectorMachine)
             ./run.py train \
                 --config ${train_config} \
                 --train.output_dir ${output_dir}/${run_type}/${run_name} \

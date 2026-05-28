@@ -316,3 +316,31 @@ class PassiveAggressiveClassifier(SKLinearBase):
             n_jobs=-1,
             random_state=random_state,
         )
+
+
+class SupportVectorMachine(SKLinearBase):
+    def __init__(
+        self,
+        protein_feature: os.PathLike,
+        protein_length: int,
+        dna_length: int,
+        random_state: int,
+    ) -> None:
+        """SupportVectorMachine arguments.
+
+        Args:
+            protein_feature: file contains info for mouse C2H2 zinc fingers.
+            protein_length: maximally allowed protein length.
+            dna_length: maximally allowed DNA length.
+            random_state: use for shuffling data.
+        """
+        super().__init__()
+
+        self.data_collator = DataCollator(protein_feature, protein_length, dna_length)
+
+        self.classifier = linear_model.SGDClassifier(
+            loss="hinge",
+            penalty="l2",
+            n_jobs=-1,
+            random_state=random_state,
+        )
