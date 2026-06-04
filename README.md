@@ -8,10 +8,16 @@
 
 # TODO
 
+- upload COP to hf after training
+- 更新COP的benchmark
+- 测试COP预测pCBS的binding结果，如果好，就加入
+- 在COP的rebuttel中解释从dynamic hard negative sampling到static random negative sampling
+
+- model card
+
 - select seed such that pcdh CTCF peaks are included in wiz
 - shift peaks to increase bind rate
 - Review the hpo result on 107 machine
-- Try to train for 3000 for COP
 - Upload model to huggingface, deploy space for both versions
 - README
 - Use PRROC and AUCROC to choose a good threshold for COP to show that COP is good. (https://stats.stackexchange.com/questions/354704/what-does-it-mean-if-the-roc-auc-is-high-and-the-average-precision-is-low>

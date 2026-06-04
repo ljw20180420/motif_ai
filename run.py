@@ -25,6 +25,7 @@ os.chdir(pathlib.Path(__file__).parent)
     hta_parser,
     hpo_parser,
     upload_parser,
+    upload_dataset_parser,
 ) = get_config()
 cfg = parser.parse_args()
 
@@ -64,3 +65,8 @@ elif cfg.subcommand == "upload":
     from common_ai.upload import MyUpload
 
     MyUpload(**cfg.upload.as_dict())()
+
+elif cfg.subcommand == "upload_dataset":
+    from common_ai.upload_dataset import MyUploadDataset
+
+    MyUploadDataset(**cfg.upload_dataset.as_dict())(cfg.upload_dataset.dataset)
