@@ -7,6 +7,7 @@ import sys
 import httpx
 import jsonargparse
 from common_ai.dataset import MyDatasetAbstract
+from huggingface_hub import upload_file
 
 # change to the project folder
 os.chdir(pathlib.Path(__file__).resolve().parent.parent.parent)
@@ -33,3 +34,10 @@ while True:
         break
     except (RuntimeError, httpx.ConnectError):
         pass
+
+upload_file(
+    path_or_fileobj="AI/dataset/formal_data/README.md",
+    path_in_repo="README.md",
+    repo_id="ljw20180420/COP",
+    repo_type="dataset",
+)
