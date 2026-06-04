@@ -1,3 +1,4 @@
 repo_id: ljw20180420/COP
+config_name: default
 readme: AI/dataset/formal_data/README.md
 dataset: dataset/dataset.yaml
