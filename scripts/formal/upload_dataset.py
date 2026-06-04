@@ -4,6 +4,7 @@ import os
 import pathlib
 import sys
 
+import httpx
 import jsonargparse
 from common_ai.dataset import MyDatasetAbstract
 
@@ -30,5 +31,5 @@ while True:
     try:
         ds.push_to_hub("ljw20180420/COP")
         break
-    except RuntimeError:
+    except (RuntimeError, httpx.ConnectError):
         pass

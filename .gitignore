@@ -6,7 +6,8 @@
 /AI/dataset/protein_feature.csv
 /AI/dataset/secondary_structure.csv
 /AI/dataset/uniprot_C2H2_protein_table.tsv
-/AI/dataset/formal_data
+/AI/dataset/formal_data/*
+!/AI/dataset/formal_data/README.md
 /AI/dataset/unittest_data
 /AI/dataset/inference_data.csv
 /AI/dataset/extra/data
