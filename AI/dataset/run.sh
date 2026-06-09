@@ -46,9 +46,9 @@ infer_secondary_structure() {
         stem=${mmcif##*/}
         stem=${stem%.mmcif}
         printf "%s," ${stem} >> secondary_structure.csv
-        mkdssp --output-format dssp $mmcif | sed '1,/^  #/d' | cut  -c14 | tr -d '\n' >> secondary_structure.csv
+        mkdssp --output-format dssp $mmcif | sed -r -e '1,/^  #/d' -e '/^.{13}!/d' | cut  -c14 | tr -d '\n' >> secondary_structure.csv
         printf "," >> secondary_structure.csv
-        mkdssp --output-format dssp $mmcif | sed '1,/^  #/d' | cut  -c17 | tr -d '\n' | tr ' ' '-' >> secondary_structure.csv
+        mkdssp --output-format dssp $mmcif | sed -r -e '1,/^  #/d' -e '/^.{13}!/d' | cut  -c17 | tr -d '\n' | tr ' ' '-' >> secondary_structure.csv
         printf "\n" >> secondary_structure.csv
     done
 }
