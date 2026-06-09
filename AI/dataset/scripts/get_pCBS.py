@@ -21,7 +21,8 @@ def get_pCBS():
         chrom=lambda df: df["chrom"].str.split(":", expand=True)[0],
         start=lambda df: df["range"].str.split("-", expand=True)[0].astype(int),
         end=lambda df: df["range"].str.split("-", expand=True)[1].astype(int),
-    ).drop(columns=["range"])[["chrom", "start", "end", "DNA"]]
+        gene=pd.read_csv("pcdh_name_with_pCBS.csv", header=0)["gene"],
+    ).drop(columns=["range"])[["chrom", "start", "end", "DNA", "gene"]]
     df_pCBS.to_csv("pCBS.csv", index=False)
     df_pCBS[["DNA"]].assign(protein="O88286").to_csv(
         "../../paper/infer_all_models/wiz.csv", index=False
