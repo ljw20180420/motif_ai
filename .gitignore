@@ -20,4 +20,8 @@
 /DeepZF/Results
 /paper/benchmark
 /paper/infer_all_models
+/paper/zold
+/paper/office
+/paper/pCBS/*
+!/paper/pCBS/pCBS.csv
 /zlog
