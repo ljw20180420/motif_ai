@@ -26,6 +26,7 @@ for pre_model in \
     Scikit:SGDClassifier \
     Scikit:Perceptron \
     Scikit:PassiveAggressiveClassifier \
+    Scikit:SupportVectorMachine \
     DeepZF:DeepZF \
     COP:COP
 do

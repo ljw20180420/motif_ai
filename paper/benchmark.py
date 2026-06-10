@@ -100,6 +100,7 @@ preprocess_model_cls_pairs = [
     ("Scikit", "SGDClassifier"),
     ("Scikit", "Perceptron"),
     ("Scikit", "PassiveAggressiveClassifier"),
+    ("Scikit", "SupportVectorMachine"),
     ("DeepZF", "DeepZF"),
     ("COP", "COP"),
 ]

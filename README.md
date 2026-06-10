@@ -8,6 +8,12 @@
 
 # TODO
 
+- 写rebuttel
+  - 加入新benchmark以及对pCBS的绑定预测
+    - 难点是如何让新COP预测绑定pCBS
+  - 用ROC-AUC和PR-AUC体现COP的优越性
+- 清理COP的TODO
+
 - upload COP to hf after training
 - 更新COP的benchmark
 - 测试COP预测pCBS的binding结果，如果好，就加入
