@@ -1,19 +1,8 @@
-- [TODO](#todo)
 - [Version 2](#version-2)
 - [Benchmark](#benchmark)
 - [Prediction of pCBS binding numbers of mouse C2H2 zinc-finger proteins](#prediction-of-pcbs-binding-numbers-of-mouse-c2h2-zinc-finger-proteins)
 - [Install](#install)
 - [Usage](#usage)
-
-# TODO
-
-- 在repo的README.md加入模型改进，benchmark以及pCBS结合数量
-
-- upload COP to hf after training
-
-- model card
-
-- README
 
 # Version 2
 
