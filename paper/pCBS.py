@@ -53,7 +53,7 @@ def generate_input():
 
 
 def predict_on_pCBS(preprocess: str, model_cls: str):
-    output_dir = pathlib.Path(os.environ("OUTPUT_DIR")) / "COP_results"
+    output_dir = pathlib.Path(os.environ["OUTPUT_DIR"])
     checkpoints_path = (
         output_dir
         / "formal"

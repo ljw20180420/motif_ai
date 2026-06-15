@@ -29,6 +29,7 @@ dependencies:
     - HolisticTraceAnalysis
     - plotnine
     - shap
+    - seaborn
     - bioframe
     - py2bit
     - setuptools==81.0.0

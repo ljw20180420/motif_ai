@@ -33,8 +33,6 @@ def get_pcdh_exons() -> pd.DataFrame:
         .reset_index(drop=True)
     )
 
-    breakpoint()
-
     df = (
         df
         .assign(
