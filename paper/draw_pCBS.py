@@ -47,4 +47,4 @@ sns.clustermap(
     figsize=(10, 100),
     dendrogram_ratio=(0.2, 0.02),
     annot=True,
-).savefig("paper/draw_pCBS/cluster.pdf")
+).savefig("paper/draw_pCBS/cluster.png")

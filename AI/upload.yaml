@@ -10,3 +10,4 @@ ignore_patterns:
   - "*.pdf"
   - "*.html"
 readme: "AI/preprocess/COP/README.md"
+num_workers: 1

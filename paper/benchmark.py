@@ -81,7 +81,7 @@ def draw_benchmark(test_df: pd.DataFrame) -> None:
                 .plot.bar(y="value", figsize=(20, 10))
             )
             ax.set_xticklabels(ax.get_xticklabels(), rotation=10, ha="right")
-            ax.get_figure().savefig(f"paper/benchmark/default_{data_name}_{metric}.pdf")
+            ax.get_figure().savefig(f"paper/benchmark/default_{data_name}_{metric}.png")
 
 
 # Swith to non-gui backend (https://stackoverflow.com/questions/52839758/matplotlib-and-runtimeerror-main-thread-is-not-in-main-loop).
