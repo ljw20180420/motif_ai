@@ -70,7 +70,8 @@ def draw_benchmark(test_df: pd.DataFrame) -> None:
             ax = (
                 test_df
                 .query("data_name == @data_name and metric == @metric")
-                .sort_values("value")
+                .rename(columns={"value": metric})
+                .sort_values(metric)
                 .set_index(
                     keys=[
                         "preprocess",
@@ -78,7 +79,7 @@ def draw_benchmark(test_df: pd.DataFrame) -> None:
                         "data_name",
                     ]
                 )
-                .plot.bar(y="value", figsize=(20, 10))
+                .plot.bar(y=metric, figsize=(20, 10))
             )
             ax.set_xticklabels(ax.get_xticklabels(), rotation=10, ha="right")
             ax.get_figure().savefig(f"paper/benchmark/default_{data_name}_{metric}.png")

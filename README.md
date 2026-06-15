@@ -1,6 +1,7 @@
 - [TODO](#todo)
 - [Version 2](#version-2)
 - [Benchmark](#benchmark)
+- [Prediction of pCBS binding numbers of mouse C2H2 zinc-finger proteins](#prediction-of-pcbs-binding-numbers-of-mouse-c2h2-zinc-finger-proteins)
 - [Install](#install)
 - [Usage](#usage)
 
@@ -24,8 +25,27 @@ As a tiny point, we replace Adaboost by XGBoost because the latter is the indust
 
 # Benchmark
 
-![accuracy](paper/benchmark/default_mouse_C2H2_AccuracyMetric.pdf)
+![accuracy](paper/benchmark/default_mouse_C2H2_AccuracyMetric.png "accuracy")
 
+![brier score](paper/benchmark/default_mouse_C2H2_BrierScoreMetric.png "brier score")
+
+![f1](paper/benchmark/default_mouse_C2H2_F1Metric.png "f1")
+
+![matthews_correlation](paper/benchmark/default_mouse_C2H2_MatthewsCorrelationMetric.png "matthews_correlation")
+
+![mean_log_likelihood](paper/benchmark/default_mouse_C2H2_MeanLogLikelihoodMetric.png "mean_log_likelihood")
+
+![pr_auc](paper/benchmark/default_mouse_C2H2_PrAucMetric.png "pr_auc")
+
+![precision](paper/benchmark/default_mouse_C2H2_PrecisionMetric.png "precision")
+
+![recall](paper/benchmark/default_mouse_C2H2_RecallMetric.png "recall")
+
+![roc_auc](paper/benchmark/default_mouse_C2H2_RocAucMetric.png "roc_auc")
+
+# Prediction of pCBS binding numbers of mouse C2H2 zinc-finger proteins
+
+![prediction of pCBS binding numbers](paper/draw_pCBS/cluster.png "prediction of pCBS binding numbers")
 
 # Install
 
