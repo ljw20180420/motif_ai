@@ -21,10 +21,6 @@
 
 - model card
 
-- select seed such that pcdh CTCF peaks are included in wiz
-- shift peaks to increase bind rate
-- Review the hpo result on 107 machine
-- Upload model to huggingface, deploy space for both versions
 - README
 - Use PRROC and AUCROC to choose a good threshold for COP to show that COP is good. (https://stats.stackexchange.com/questions/354704/what-does-it-mean-if-the-roc-auc-is-high-and-the-average-precision-is-low>
 - 增加DNA或蛋白长度

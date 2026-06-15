@@ -18,10 +18,10 @@
 /AI/app_space.yaml
 /DeepZF/Data
 /DeepZF/Results
-/paper/benchmark
 /paper/infer_all_models
 /paper/zold
 /paper/office
 /paper/pCBS
-/paper/draw_pCBS
+/paper/benchmark/default.csv
+/paper/benchmark/default.tex
 /zlog
