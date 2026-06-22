@@ -3,6 +3,9 @@
 - [Prediction of pCBS binding numbers of mouse C2H2 zinc-finger proteins](#prediction-of-pcbs-binding-numbers-of-mouse-c2h2-zinc-finger-proteins)
 - [Install](#install)
 - [Usage](#usage)
+- [Dataset](#dataset)
+- [Weights](#weights)
+- [Space](#space)
 
 # Version 2
 
@@ -50,3 +53,15 @@ $ conda env create -p ./.conda -f environment.yml
 $ conda activate ./.conda
 $ ./run.py --help
 ```
+
+# Dataset
+
+https://huggingface.co/datasets/ljw20180420/COP
+
+# Weights
+
+https://huggingface.co/ljw20180420/COP_COP_mouse_C2H2
+
+# Space
+
+https://huggingface.co/spaces/ljw20180420/COP
