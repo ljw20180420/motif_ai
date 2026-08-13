@@ -24,4 +24,7 @@
 /paper/pCBS
 /paper/benchmark/default.csv
 /paper/benchmark/default.tex
+/paper/tex/*
+!/paper/tex/paper.tex
+!/paper/tex/reference.bib
 /zlog
